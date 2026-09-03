@@ -6510,6 +6510,161 @@ async function getEmployeeFromTable(employeeId) {
 
 }
 
+async function loadEmployees() {
+
+    const table =
+        document.getElementById("employeesTable");
+
+    const message =
+        document.getElementById("adminMessage");
+
+    if (!table) {
+        return;
+    }
+
+    try {
+
+        table.innerHTML =
+            `<tr>
+                <td colspan="4">Loading employees...</td>
+            </tr>`;
+
+        const employees =
+            await apiFetch("/admin/employees");
+
+        if (!Array.isArray(employees) || employees.length === 0) {
+
+            table.innerHTML =
+                `<tr>
+                    <td colspan="4">No employees found.</td>
+                </tr>`;
+
+            return;
+        }
+
+        table.innerHTML = "";
+
+        employees.forEach(employee => {
+
+            const row =
+                document.createElement("tr");
+
+            const usernameCell =
+                document.createElement("td");
+
+            usernameCell.textContent =
+                employee.username;
+
+            const rankCell =
+                document.createElement("td");
+
+            const rankSelect =
+                document.createElement("select");
+
+            rankSelect.id =
+                `rank-${employee.id}`;
+
+            ["employee", "manager", "admin", "senior_admin"]
+                .forEach(rank => {
+
+                    const option =
+                        document.createElement("option");
+
+                    option.value = rank;
+
+                    option.textContent =
+                        rank
+                            .replace("_", " ")
+                            .replace(/\b\w/g, c => c.toUpperCase());
+
+                    if (employee.role === rank) {
+                        option.selected = true;
+                    }
+
+                    rankSelect.appendChild(option);
+
+                });
+
+            rankCell.appendChild(rankSelect);
+
+            const passwordCell =
+                document.createElement("td");
+
+            const passwordInput =
+                document.createElement("input");
+
+            passwordInput.type =
+                "password";
+
+            passwordInput.id =
+                `password-${employee.id}`;
+
+            passwordInput.placeholder =
+                "Leave blank to keep";
+
+            passwordInput.autocomplete =
+                "new-password";
+
+            passwordCell.appendChild(
+                passwordInput
+            );
+
+            const actionCell =
+                document.createElement("td");
+
+            const saveButton =
+                document.createElement("button");
+
+            saveButton.textContent =
+                "Save";
+
+            saveButton.className =
+                "admin-save-btn";
+
+            saveButton.onclick =
+                () => saveEmployee(employee.id);
+
+            actionCell.appendChild(
+                saveButton
+            );
+
+            row.appendChild(usernameCell);
+            row.appendChild(rankCell);
+            row.appendChild(passwordCell);
+            row.appendChild(actionCell);
+
+            table.appendChild(row);
+
+        });
+
+        if (message) {
+            message.className = "message";
+            message.textContent = "";
+        }
+
+    } catch (error) {
+
+        table.innerHTML =
+            `<tr>
+                <td colspan="4">
+                    Failed to load employees.
+                </td>
+            </tr>`;
+
+        if (message) {
+
+            message.className =
+                "message error";
+
+            message.textContent =
+                error.message;
+
+        }
+
+    }
+}
+
+
 
 // ---------------------------------------------------------
 // FORMAT TIMESTAMP
