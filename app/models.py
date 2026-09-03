@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -19,98 +20,285 @@ class Base(DeclarativeBase):
 class Employee(Base):
     __tablename__ = "employees"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(nullable=False)
-    role: Mapped[str] = mapped_column(String(20), default="employee")
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    username: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=False,
+    )
+
+    password_hash: Mapped[str] = mapped_column(
+        nullable=False,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(20),
+        default="employee",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
     )
 
 
 class Ingredient(Base):
     __tablename__ = "ingredients"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    buy_cost: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
-    sell_cost: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+    )
+
+    buy_cost: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 2),
+        nullable=False,
+    )
+
+    sell_cost: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 2),
+        nullable=False,
+    )
+
+    desired_quantity: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+        default=Decimal("0.000"),
+    )
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
     )
 
 
 class Deposit(Base):
     __tablename__ = "deposits"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    employee_id: Mapped[int] = mapped_column(
-        ForeignKey("employees.id"), nullable=False
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
     )
+
+    # NULL means Store-owned inventory.
+    employee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("employees.id"),
+        nullable=True,
+    )
+
     ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"), nullable=False
+        ForeignKey("ingredients.id"),
+        nullable=False,
     )
-    quantity: Mapped[Decimal] = mapped_column(DECIMAL(10, 3), nullable=False)
+
+    quantity: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
     quantity_remaining: Mapped[Decimal] = mapped_column(
-        DECIMAL(10, 3), nullable=False
+        DECIMAL(10, 3),
+        nullable=False,
     )
+
     deposited_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
     )
 
 
 class Sale(Base):
     __tablename__ = "sales"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"), nullable=False
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
     )
-    quantity: Mapped[Decimal] = mapped_column(DECIMAL(10, 3), nullable=False)
+
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredients.id"),
+        nullable=False,
+    )
+
+    quantity: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
     sold_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
     )
 
 
 class PayoutAllocation(Base):
     __tablename__ = "payout_allocations"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
     sale_id: Mapped[int] = mapped_column(
-        ForeignKey("sales.id"), nullable=False
+        ForeignKey("sales.id"),
+        nullable=False,
     )
+
     deposit_id: Mapped[int] = mapped_column(
-        ForeignKey("deposits.id"), nullable=False
+        ForeignKey("deposits.id"),
+        nullable=False,
     )
+
     employee_id: Mapped[int] = mapped_column(
-        ForeignKey("employees.id"), nullable=False
+        ForeignKey("employees.id"),
+        nullable=False,
     )
-    quantity: Mapped[Decimal] = mapped_column(DECIMAL(10, 3), nullable=False)
+
+    quantity: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
     payout_amount: Mapped[Decimal] = mapped_column(
-        DECIMAL(10, 2), nullable=False
+        DECIMAL(10, 2),
+        nullable=False,
     )
+
     paid_amount: Mapped[Decimal] = mapped_column(
         DECIMAL(10, 2),
         nullable=False,
         default=Decimal("0.00"),
     )
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
     )
-    paid_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=True
+
+    paid_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
     )
-    
+
+
 class PayoutPayment(Base):
     __tablename__ = "payout_payments"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
     employee_id: Mapped[int] = mapped_column(
-        ForeignKey("employees.id"), nullable=False
+        ForeignKey("employees.id"),
+        nullable=False,
     )
+
     amount: Mapped[Decimal] = mapped_column(
-        DECIMAL(10, 2), nullable=False
+        DECIMAL(10, 2),
+        nullable=False,
     )
+
     paid_at: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class InventoryAdjustment(Base):
+    __tablename__ = "inventory_adjustments"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    ingredient_id: Mapped[int] = mapped_column(
+        ForeignKey("ingredients.id"),
+        nullable=False,
+    )
+
+    manager_id: Mapped[int] = mapped_column(
+        ForeignKey("employees.id"),
+        nullable=False,
+    )
+
+    pos_quantity_before: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
+    physical_quantity: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
+    quantity_change: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
+    reason: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class InventoryAdjustmentAllocation(Base):
+    __tablename__ = "inventory_adjustment_allocations"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    adjustment_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "inventory_adjustments.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+
+    deposit_id: Mapped[int] = mapped_column(
+        ForeignKey("deposits.id"),
+        nullable=False,
+    )
+
+    employee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("employees.id"),
+        nullable=True,
+    )
+
+    quantity: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 3),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
     )

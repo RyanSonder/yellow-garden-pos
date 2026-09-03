@@ -1,12 +1,10 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS System</title>
+    <title>Yellow Garden POS System</title>
 
-```
 <style>
     body {
         font-family: Arial, sans-serif;
@@ -34,6 +32,11 @@
         cursor: pointer;
     }
 
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
     .logout-btn {
         background: #d9534f;
         color: white;
@@ -43,6 +46,7 @@
         display: flex;
         background: white;
         border-bottom: 1px solid #ccc;
+        flex-wrap: wrap;
     }
 
     .tab-button {
@@ -78,9 +82,16 @@
     }
 
     input,
-    select {
+    select,
+    textarea {
         padding: 8px;
         margin: 5px;
+    }
+
+    textarea {
+        min-width: 300px;
+        min-height: 70px;
+        font-family: Arial, sans-serif;
     }
 
     table {
@@ -109,6 +120,15 @@
         background: #4cae4c;
     }
 
+    .save-btn {
+        background: #337ab7;
+        color: white;
+    }
+
+    .save-btn:hover {
+        background: #286090;
+    }
+
     .message {
         margin-top: 10px;
         padding: 10px;
@@ -122,38 +142,419 @@
         color: #267326;
     }
 
+    .warning {
+        color: #856404;
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        border-radius: 4px;
+    }
+
     .payment-input {
         width: 100px;
         margin: 0;
     }
+
+    .cost-input {
+        width: 100px;
+        margin: 0;
+    }
+
+    .desired-input {
+        width: 100px;
+        margin: 0;
+    }
+
+    .batch-quantity-input {
+        width: 100px;
+        margin: 0;
+    }
+
+    .inventory-needed {
+        font-weight: bold;
+    }
+
+    .store-row {
+        font-weight: bold;
+    }
+
+    .empty-message {
+        padding: 15px;
+        color: #666;
+    }
+
+    .credited-total {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 15px 0 20px 0;
+    }
+
+    .credited-total-label {
+        font-size: 16px;
+        font-weight: normal;
+        margin-right: 8px;
+    }
+
+    .ownership-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin: 15px 0 20px 0;
+    }
+
+    .ownership-summary-item {
+        background: #f4f4f4;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 15px 20px;
+        min-width: 180px;
+    }
+
+    .ownership-summary-name {
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+
+    .ownership-summary-amount {
+        font-size: 22px;
+        font-weight: bold;
+    }
+
+    .store-summary {
+        background: #eee;
+    }
+
+    .save-all-btn {
+        margin-top: 15px;
+    }
+
+    .batch-table {
+        margin-top: 20px;
+    }
+
+    .batch-remove-btn {
+        background: #d9534f;
+        color: white;
+        padding: 6px 10px;
+    }
+
+    .batch-remove-btn:hover {
+        background: #c9302c;
+    }
+
+    .batch-submit-btn {
+        background: #5cb85c;
+        color: white;
+        margin-top: 15px;
+        font-size: 16px;
+        padding: 10px 18px;
+    }
+
+    .batch-submit-btn:hover {
+        background: #449d44;
+    }
+
+    .batch-empty {
+        color: #666;
+        padding: 15px 0;
+    }
+
+    .batch-total {
+        font-weight: bold;
+        margin-top: 15px;
+    }
+
+    .stock-warning {
+        color: #856404;
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .stock-ok {
+        color: #267326;
+        background: #dff0d8;
+        border: 1px solid #c3e6cb;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .sale-value-total {
+        font-size: 24px;
+        font-weight: bold;
+        margin-top: 10px;
+    }
+
+    .sale-value-label {
+        font-size: 16px;
+        font-weight: normal;
+        margin-right: 8px;
+    }
+
+    /* ---------------------------------------------------------
+       OWNERSHIP PIE CHART
+       --------------------------------------------------------- */
+
+    .ownership-chart-section {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 35px;
+        margin: 20px 0 30px 0;
+        padding: 20px;
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    .ownership-chart-container {
+        width: 280px;
+        height: 280px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ownership-chart {
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background: #ddd;
+        position: relative;
+    }
+
+    .ownership-chart::after {
+        content: "";
+        position: absolute;
+        width: 110px;
+        height: 110px;
+        background: white;
+        border-radius: 50%;
+        top: 70px;
+        left: 70px;
+    }
+
+    .ownership-chart-center {
+        position: absolute;
+        z-index: 2;
+        width: 110px;
+        height: 110px;
+        top: 70px;
+        left: 70px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .ownership-chart-center-label {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .ownership-chart-center-value {
+        font-size: 19px;
+        font-weight: bold;
+        margin-top: 4px;
+    }
+
+    .ownership-chart-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-width: 220px;
+    }
+
+    .ownership-chart-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .ownership-chart-legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .ownership-chart-legend-name {
+        font-weight: bold;
+    }
+
+    .ownership-chart-legend-value {
+        color: #666;
+        margin-left: auto;
+    }
+
+    .ownership-chart-empty {
+        color: #666;
+        padding: 20px;
+    }
+
+    /* ---------------------------------------------------------
+       ADMIN
+       --------------------------------------------------------- */
+
+    .admin-password-input {
+        width: 160px;
+        margin: 0;
+    }
+
+    .admin-rank-select {
+        margin: 0;
+    }
+
+    .admin-save-btn {
+        background: #337ab7;
+        color: white;
+    }
+
+    .admin-save-btn:hover {
+        background: #286090;
+    }
+
+    /* ---------------------------------------------------------
+       RECONCILIATION
+       --------------------------------------------------------- */
+
+    .reconcile-input {
+        width: 120px;
+        margin: 0;
+    }
+
+    .reconcile-reason {
+        width: 100%;
+        max-width: 600px;
+        box-sizing: border-box;
+    }
+
+    .reconcile-table {
+        margin-top: 20px;
+    }
+
+    .reconcile-difference-positive {
+        color: #267326;
+        font-weight: bold;
+    }
+
+    .reconcile-difference-negative {
+        color: #b30000;
+        font-weight: bold;
+    }
+
+    .reconcile-difference-zero {
+        color: #666;
+        font-weight: bold;
+    }
+
+    .reconcile-detail {
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-top: 10px;
+    }
+
+    .reconcile-detail h4 {
+        margin-top: 0;
+    }
+
+    .employee-adjustment-input {
+        width: 100px;
+        margin: 0;
+    }
+
+    .reconcile-submit-btn {
+        background: #337ab7;
+        color: white;
+        font-size: 16px;
+        padding: 10px 18px;
+        margin-top: 15px;
+    }
+
+    .reconcile-submit-btn:hover {
+        background: #286090;
+    }
+
+    .reconcile-history {
+        margin-top: 25px;
+    }
+
+    .reconcile-shortage {
+        color: #b30000;
+        background: #f2dede;
+        border: 1px solid #ebcccc;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+
+    .reconcile-overage {
+        color: #267326;
+        background: #dff0d8;
+        border: 1px solid #c3e6cb;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+
 </style>
-```
 
 </head>
 
 <body>
 
 <header>
-    <h1>POS System</h1>
-    <div>
-        <span id="usernameDisplay"></span>
-        <button class="logout-btn" onclick="logout()">Logout</button>
-    </div>
+
+<h1>Yellow Garden POS System</h1>
+
+<div>
+    <span id="usernameDisplay"></span>
+
+    <button
+        class="logout-btn"
+        onclick="logout()"
+    >
+        Logout
+    </button>
+</div>
+
 </header>
 
 <div class="tabs">
 
-```
-<button class="tab-button active" onclick="showTab('sales', this)">
+<button
+    class="tab-button active"
+    onclick="showTab('sales', this)"
+>
     Sales
 </button>
 
-<button class="tab-button" onclick="showTab('deposits', this)">
+<button
+    class="tab-button"
+    onclick="showTab('deposits', this)"
+>
     Deposits
 </button>
 
-<button class="tab-button" onclick="showTab('inventory', this)">
+<button
+    class="tab-button"
+    onclick="showTab('inventory', this)"
+>
     Inventory
+</button>
+
+<button
+    class="tab-button"
+    onclick="showTab('myInventory', this)"
+>
+    My Inventory
 </button>
 
 <button
@@ -166,6 +567,24 @@
 </button>
 
 <button
+    id="ownershipTabButton"
+    class="tab-button"
+    onclick="showTab('ownership', this)"
+    style="display: none;"
+>
+    Ownership
+</button>
+
+<button
+    id="reconcileTabButton"
+    class="tab-button"
+    onclick="showTab('reconcile', this)"
+    style="display: none;"
+>
+    Reconcile
+</button>
+
+<button
     id="ingredientsTabButton"
     class="tab-button"
     onclick="showTab('ingredients', this)"
@@ -173,7 +592,15 @@
 >
     Ingredients
 </button>
-```
+
+<button
+    id="adminTabButton"
+    class="tab-button"
+    onclick="showTab('admin', this)"
+    style="display: none;"
+>
+    Admin
+</button>
 
 </div>
 
@@ -181,7 +608,6 @@
 
 <div id="sales" class="tab active">
 
-```
 <div class="card">
 
     <h2>Record Sale</h2>
@@ -189,7 +615,9 @@
     <form id="saleForm">
 
         <select id="saleIngredient" required>
-            <option value="">Select ingredient</option>
+            <option value="">
+                Select ingredient
+            </option>
         </select>
 
         <input
@@ -202,15 +630,60 @@
         >
 
         <button type="submit">
-            Record Sale
+            Add to Sale
         </button>
 
     </form>
 
+    <div id="saleStockWarning"></div>
+
     <div id="saleMessage" class="message"></div>
 
+    <div id="saleBatchContainer" style="display: none;">
+
+        <h3>Current Sale</h3>
+
+        <table class="batch-table">
+
+            <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Quantity</th>
+                    <th>Sale Value</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="saleBatchTable"></tbody>
+
+        </table>
+
+        <div class="batch-total">
+            Total Items:
+            <span id="saleBatchCount">0</span>
+        </div>
+
+        <div class="sale-value-total">
+            <span class="sale-value-label">
+                Total Sale Value:
+            </span>
+
+            <span id="saleBatchValue">
+                0.00g
+            </span>
+        </div>
+
+        <button
+            id="submitSalesButton"
+            class="batch-submit-btn"
+            onclick="submitAllSales()"
+        >
+            Submit All Sales
+        </button>
+
+    </div>
+
 </div>
-```
 
 </div>
 
@@ -218,7 +691,6 @@
 
 <div id="deposits" class="tab">
 
-```
 <div class="card">
 
     <h2>Make Deposit</h2>
@@ -226,7 +698,9 @@
     <form id="depositForm">
 
         <select id="depositIngredient" required>
-            <option value="">Select ingredient</option>
+            <option value="">
+                Select ingredient
+            </option>
         </select>
 
         <input
@@ -239,15 +713,51 @@
         >
 
         <button type="submit">
-            Deposit
+            Add to Deposit
         </button>
 
     </form>
 
+    <div id="depositWarning"></div>
+
     <div id="depositMessage" class="message"></div>
 
+    <div id="depositBatchContainer" style="display: none;">
+
+        <h3>Current Deposit</h3>
+
+        <table class="batch-table">
+
+            <thead>
+                <tr>
+                    <th>Ingredient</th>
+                    <th>Quantity</th>
+                    <th>Employee Credit</th>
+                    <th>Store Credit</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody id="depositBatchTable"></tbody>
+
+        </table>
+
+        <div class="batch-total">
+            Total Items:
+            <span id="depositBatchCount">0</span>
+        </div>
+
+        <button
+            id="submitDepositsButton"
+            class="batch-submit-btn"
+            onclick="submitAllDeposits()"
+        >
+            Submit All Deposits
+        </button>
+
+    </div>
+
 </div>
-```
 
 </div>
 
@@ -255,7 +765,6 @@
 
 <div id="inventory" class="tab">
 
-```
 <div class="card">
 
     <h2>Inventory</h2>
@@ -270,21 +779,61 @@
 
         <thead>
             <tr>
-                <th>Employee</th>
                 <th>Ingredient</th>
-                <th>Original Quantity</th>
-                <th>Remaining</th>
-                <th>Deposited</th>
+                <th>Current</th>
+                <th>Desired</th>
+                <th>Needed</th>
             </tr>
         </thead>
 
-        <tbody id="inventoryTable">
-        </tbody>
+        <tbody id="inventoryTable"></tbody>
 
     </table>
 
 </div>
-```
+
+</div>
+
+<!-- MY INVENTORY -->
+
+<div id="myInventory" class="tab">
+
+<div class="card">
+
+    <h2 id="myInventoryTitle">My Inventory</h2>
+
+    <div class="credited-total">
+        <span class="credited-total-label">
+            Total Currently Credited:
+        </span>
+
+        <span id="myInventoryTotal">
+            0.00g
+        </span>
+    </div>
+
+    <button onclick="loadMyInventory()">
+        Refresh
+    </button>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th>Quantity Owned</th>
+                <th>Credited</th>
+                <th>Most Recent Deposit</th>
+            </tr>
+        </thead>
+
+        <tbody id="myInventoryTable"></tbody>
+
+    </table>
+
+</div>
 
 </div>
 
@@ -292,7 +841,6 @@
 
 <div id="payouts" class="tab">
 
-```
 <div class="card">
 
     <h2>Employee Payouts</h2>
@@ -314,15 +862,208 @@
             </tr>
         </thead>
 
-        <tbody id="payoutsTable">
-        </tbody>
+        <tbody id="payoutsTable"></tbody>
 
     </table>
 
     <div id="payoutMessage" class="message"></div>
 
 </div>
-```
+
+</div>
+
+<!-- OWNERSHIP -->
+
+<div id="ownership" class="tab">
+
+<div class="card">
+
+    <h2>Inventory Ownership</h2>
+
+    <div class="ownership-chart-section">
+
+        <div class="ownership-chart-container">
+
+            <div
+                id="ownershipChart"
+                class="ownership-chart"
+            >
+
+                <div class="ownership-chart-center">
+
+                    <div class="ownership-chart-center-label">
+                        Total Value
+                    </div>
+
+                    <div
+                        id="ownershipChartTotal"
+                        class="ownership-chart-center-value"
+                    >
+                        0.00g
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div
+            id="ownershipChartLegend"
+            class="ownership-chart-legend"
+        ></div>
+
+    </div>
+
+    <div
+        id="ownershipSummary"
+        class="ownership-summary"
+    ></div>
+
+    <button onclick="loadOwnership()">
+        Refresh
+    </button>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th>Owner</th>
+                <th>Quantity</th>
+                <th>Credited</th>
+                <th>Most Recent Deposit</th>
+            </tr>
+        </thead>
+
+        <tbody id="ownershipTable"></tbody>
+
+    </table>
+
+</div>
+
+</div>
+
+<!-- RECONCILE -->
+
+<div id="reconcile" class="tab">
+
+<div class="card">
+
+    <h2>Reconcile Inventory</h2>
+
+    <p>
+        Use this when the physical inventory does not match the quantity
+        recorded by the POS.
+    </p>
+
+    <p>
+        <strong>Overages</strong> become Store-owned inventory.
+        <br>
+        <strong>Shortages</strong> use Store inventory first.
+        If Store inventory is insufficient, select the employee-owned
+        deposits that should be reduced.
+    </p>
+
+    <button onclick="loadReconciliation()">
+        Refresh
+    </button>
+
+    <div id="reconcileMessage" class="message"></div>
+
+    <br>
+
+    <table class="reconcile-table">
+
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th>POS Quantity</th>
+                <th>Physical Quantity</th>
+                <th>Difference</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody id="reconcileTable"></tbody>
+
+    </table>
+
+</div>
+
+<div class="card" id="reconcileEditor" style="display: none;">
+
+    <h2 id="reconcileEditorTitle">
+        Reconcile Ingredient
+    </h2>
+
+    <div id="reconcileEditorSummary"></div>
+
+    <div id="reconcileAllocationArea"></div>
+
+    <div style="margin-top: 20px;">
+
+        <label>
+            <strong>Reason for adjustment</strong>
+        </label>
+
+        <br>
+
+        <textarea
+            id="reconcileReason"
+            class="reconcile-reason"
+            placeholder="Example: Physical count found 2 fewer units."
+        ></textarea>
+
+    </div>
+
+    <button
+        id="submitReconcileButton"
+        class="reconcile-submit-btn"
+        onclick="submitReconciliation()"
+    >
+        Submit Adjustment
+    </button>
+
+    <button
+        onclick="cancelReconciliation()"
+        style="margin-left: 8px;"
+    >
+        Cancel
+    </button>
+
+</div>
+
+<div class="card reconcile-history">
+
+    <h2>Adjustment History</h2>
+
+    <button onclick="loadReconcileHistory()">
+        Refresh History
+    </button>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Ingredient</th>
+                <th>POS Change</th>
+                <th>Employee</th>
+                <th>Manager</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+
+        <tbody id="reconcileHistoryTable"></tbody>
+
+    </table>
+
+</div>
 
 </div>
 
@@ -330,7 +1071,6 @@
 
 <div id="ingredients" class="tab">
 
-```
 <div class="card">
 
     <h2>Add Ingredient</h2>
@@ -362,6 +1102,15 @@
             required
         >
 
+        <input
+            type="number"
+            id="desiredQuantity"
+            step="0.001"
+            min="0"
+            placeholder="Desired quantity"
+            required
+        >
+
         <button type="submit">
             Add Ingredient
         </button>
@@ -372,7 +1121,6 @@
 
 </div>
 
-
 <div class="card">
 
     <h2>Ingredients</h2>
@@ -381,7 +1129,16 @@
         Refresh
     </button>
 
-    <br><br>
+    <button
+        class="save-btn save-all-btn"
+        onclick="saveAllIngredients()"
+    >
+        Save All Changes
+    </button>
+
+    <div id="ingredientSaveMessage" class="message"></div>
+
+    <br>
 
     <table>
 
@@ -390,16 +1147,54 @@
                 <th>Name</th>
                 <th>Buy Cost</th>
                 <th>Sell Cost</th>
+                <th>Desired Quantity</th>
             </tr>
         </thead>
 
-        <tbody id="ingredientsTable">
-        </tbody>
+        <tbody id="ingredientsTable"></tbody>
 
     </table>
 
 </div>
-```
+
+</div>
+
+<!-- ADMIN -->
+
+<div id="admin" class="tab">
+
+<div class="card">
+
+    <h2>Employee Management</h2>
+
+    <p>
+        Admins can change employee ranks and passwords.
+    </p>
+
+    <button onclick="loadEmployees()">
+        Refresh Employees
+    </button>
+
+    <div id="adminMessage" class="message"></div>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Rank</th>
+                <th>New Password</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody id="employeesTable"></tbody>
+
+    </table>
+
+</div>
 
 </div>
 
@@ -413,8 +1208,22 @@ if (!token) {
     window.location.href = "login.html";
 }
 
-
 let currentUser = null;
+
+let saleBatch = [];
+let depositBatch = [];
+
+let inventoryCache = [];
+
+let reconciliationState = {
+    ingredientId: null,
+    ingredientName: "",
+    posQuantity: 0,
+    physicalQuantity: 0,
+    difference: 0,
+    storeQuantity: 0,
+    employeeDeposits: []
+};
 
 
 // ---------------------------------------------------------
@@ -428,17 +1237,26 @@ async function apiFetch(url, options = {}) {
         "Authorization": `Bearer ${token}`
     };
 
-    const response = await fetch(API_URL + url, options);
+    const response =
+        await fetch(API_URL + url, options);
 
     if (response.status === 401) {
         logout();
         return;
     }
 
-    const data = await response.json();
+    let data;
+
+    try {
+        data = await response.json();
+    } catch {
+        data = {};
+    }
 
     if (!response.ok) {
-        throw new Error(data.detail || "Request failed");
+        throw new Error(
+            data.detail || "Request failed"
+        );
     }
 
     return data;
@@ -446,34 +1264,181 @@ async function apiFetch(url, options = {}) {
 
 
 // ---------------------------------------------------------
-// INITIAL LOAD
+// FORMATTING
+// ---------------------------------------------------------
+
+function formatQuantity(value) {
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return "0";
+    }
+
+    return number
+        .toFixed(3)
+        .replace(/\.?0+$/, "");
+}
+
+
+function formatCost(value) {
+
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+        return "0.00g";
+    }
+
+    return `${number.toFixed(2)}g`;
+}
+
+
+// ---------------------------------------------------------
+// INVENTORY CACHE HELPERS
+// ---------------------------------------------------------
+
+function getInventoryItem(ingredientId) {
+
+    return inventoryCache.find(
+        item =>
+            Number(item.ingredient_id) ===
+            Number(ingredientId)
+    );
+}
+
+
+function getCurrentStock(ingredientId) {
+
+    const item =
+        getInventoryItem(ingredientId);
+
+    if (!item) {
+        return 0;
+    }
+
+    return Number(
+        item.current_quantity
+    ) || 0;
+}
+
+
+function getDesiredStock(ingredientId) {
+
+    const item =
+        getInventoryItem(ingredientId);
+
+    if (!item) {
+        return 0;
+    }
+
+    return Number(
+        item.desired_quantity
+    ) || 0;
+}
+
+
+// ---------------------------------------------------------
+// PENDING BATCH HELPERS
+// ---------------------------------------------------------
+
+function getPendingSaleQuantity(ingredientId) {
+
+    return saleBatch
+        .filter(
+            item =>
+                Number(item.ingredient_id) ===
+                Number(ingredientId)
+        )
+        .reduce(
+            (total, item) =>
+                total + Number(item.quantity),
+            0
+        );
+}
+
+
+function getPendingDepositQuantity(ingredientId) {
+
+    return depositBatch
+        .filter(
+            item =>
+                Number(item.ingredient_id) ===
+                Number(ingredientId)
+        )
+        .reduce(
+            (total, item) =>
+                total + Number(item.quantity),
+            0
+        );
+}
+
+
+// ---------------------------------------------------------
+// INITIALIZE
 // ---------------------------------------------------------
 
 async function initialize() {
 
     try {
 
-        currentUser = await apiFetch("/me");
+        currentUser =
+            await apiFetch("/me");
 
-        document.getElementById("usernameDisplay").textContent =
-            currentUser.username;
+        document
+            .getElementById("usernameDisplay")
+            .textContent =
+            `${currentUser.username} (${currentUser.role})`;
 
-        if (currentUser.role === "manager") {
+        const isManagerOrAdmin =
+            currentUser.role === "manager" ||
+            currentUser.role === "admin";
 
-            document.getElementById("payoutsTabButton").style.display =
-                "block";
+        const isAdmin =
+            currentUser.role === "admin";
 
-            document.getElementById("ingredientsTabButton").style.display =
-                "block";
+        if (isManagerOrAdmin) {
 
+            document
+                .getElementById("payoutsTabButton")
+                .style.display = "block";
+
+            document
+                .getElementById("ownershipTabButton")
+                .style.display = "block";
+
+            document
+                .getElementById("reconcileTabButton")
+                .style.display = "block";
+
+            document
+                .getElementById("ingredientsTabButton")
+                .style.display = "block";
         }
 
+        if (isAdmin) {
+
+            document
+                .getElementById("adminTabButton")
+                .style.display = "block";
+
+            await loadEmployees();
+        }
+
+        document
+            .getElementById("myInventoryTitle")
+            .textContent =
+            `${currentUser.username}'s Inventory`;
+
         await loadIngredients();
-
         await loadInventory();
+        await loadMyInventory();
 
-        if (currentUser.role === "manager") {
+        if (isManagerOrAdmin) {
+
             await loadPayouts();
+            await loadOwnership();
+            await loadReconciliation();
+            await loadReconcileHistory();
         }
 
     } catch (error) {
@@ -491,29 +1456,51 @@ async function initialize() {
 
 function showTab(tabName, button) {
 
-    document.querySelectorAll(".tab").forEach(tab => {
-        tab.classList.remove("active");
-    });
+    document
+        .querySelectorAll(".tab")
+        .forEach(tab => {
+            tab.classList.remove("active");
+        });
 
-    document.querySelectorAll(".tab-button").forEach(btn => {
-        btn.classList.remove("active");
-    });
+    document
+        .querySelectorAll(".tab-button")
+        .forEach(btn => {
+            btn.classList.remove("active");
+        });
 
-    document.getElementById(tabName).classList.add("active");
+    document
+        .getElementById(tabName)
+        .classList.add("active");
 
     button.classList.add("active");
 
-
     if (tabName === "inventory") {
         loadInventory();
+    }
+
+    if (tabName === "myInventory") {
+        loadMyInventory();
     }
 
     if (tabName === "payouts") {
         loadPayouts();
     }
 
+    if (tabName === "ownership") {
+        loadOwnership();
+    }
+
+    if (tabName === "reconcile") {
+        loadReconciliation();
+        loadReconcileHistory();
+    }
+
     if (tabName === "ingredients") {
         loadIngredients();
+    }
+
+    if (tabName === "admin") {
+        loadEmployees();
     }
 
 }
@@ -527,7 +1514,8 @@ async function loadIngredients() {
 
     try {
 
-        const ingredients = await apiFetch("/ingredients");
+        const ingredients =
+            await apiFetch("/ingredients");
 
         const saleSelect =
             document.getElementById("saleIngredient");
@@ -538,7 +1526,6 @@ async function loadIngredients() {
         const table =
             document.getElementById("ingredientsTable");
 
-
         saleSelect.innerHTML =
             '<option value="">Select ingredient</option>';
 
@@ -547,31 +1534,85 @@ async function loadIngredients() {
 
         table.innerHTML = "";
 
-
         ingredients.forEach(ingredient => {
 
-            const saleOption = document.createElement("option");
+            const saleOption =
+                document.createElement("option");
 
-            saleOption.value = ingredient.id;
-            saleOption.textContent = ingredient.name;
+            saleOption.value =
+                ingredient.id;
 
-            saleSelect.appendChild(saleOption);
+            saleOption.textContent =
+                ingredient.name;
 
+            saleOption.dataset.sellCost =
+                ingredient.sell_cost;
 
-            const depositOption = document.createElement("option");
+            saleSelect.appendChild(
+                saleOption
+            );
 
-            depositOption.value = ingredient.id;
-            depositOption.textContent = ingredient.name;
+            const depositOption =
+                document.createElement("option");
 
-            depositSelect.appendChild(depositOption);
+            depositOption.value =
+                ingredient.id;
 
+            depositOption.textContent =
+                ingredient.name;
 
-            const row = document.createElement("tr");
+            depositSelect.appendChild(
+                depositOption
+            );
+
+            const row =
+                document.createElement("tr");
 
             row.innerHTML = `
-                <td>${ingredient.name}</td>
-                <td>$${Number(ingredient.buy_cost).toFixed(2)}</td>
-                <td>$${Number(ingredient.sell_cost).toFixed(2)}</td>
+                <td>
+                    ${escapeHtml(
+                        ingredient.name
+                    )}
+                </td>
+
+                <td>
+                    <input
+                        type="number"
+                        class="cost-input"
+                        min="0"
+                        step="0.01"
+                        id="buy-${ingredient.id}"
+                        value="${Number(
+                            ingredient.buy_cost
+                        ).toFixed(2)}"
+                    >
+                </td>
+
+                <td>
+                    <input
+                        type="number"
+                        class="cost-input"
+                        min="0"
+                        step="0.01"
+                        id="sell-${ingredient.id}"
+                        value="${Number(
+                            ingredient.sell_cost
+                        ).toFixed(2)}"
+                    >
+                </td>
+
+                <td>
+                    <input
+                        type="number"
+                        class="desired-input"
+                        min="0"
+                        step="0.001"
+                        id="desired-${ingredient.id}"
+                        value="${Number(
+                            ingredient.desired_quantity
+                        )}"
+                    >
+                </td>
             `;
 
             table.appendChild(row);
@@ -588,101 +1629,1312 @@ async function loadIngredients() {
 
 
 // ---------------------------------------------------------
-// SALES
+// SAVE ALL INGREDIENT CHANGES
+// ---------------------------------------------------------
+
+async function saveAllIngredients() {
+
+    const message =
+        document.getElementById(
+            "ingredientSaveMessage"
+        );
+
+    try {
+
+        const ingredients =
+            await apiFetch("/ingredients");
+
+        const updates = [];
+
+        for (const ingredient of ingredients) {
+
+            const buyInput =
+                document.getElementById(
+                    `buy-${ingredient.id}`
+                );
+
+            const sellInput =
+                document.getElementById(
+                    `sell-${ingredient.id}`
+                );
+
+            const desiredInput =
+                document.getElementById(
+                    `desired-${ingredient.id}`
+                );
+
+            const buyCost =
+                Number(buyInput.value);
+
+            const sellCost =
+                Number(sellInput.value);
+
+            const desiredQuantity =
+                Number(desiredInput.value);
+
+            if (
+                !Number.isFinite(buyCost) ||
+                buyCost < 0
+            ) {
+                throw new Error(
+                    `Invalid buy cost for ${ingredient.name}.`
+                );
+            }
+
+            if (
+                !Number.isFinite(sellCost) ||
+                sellCost < 0
+            ) {
+                throw new Error(
+                    `Invalid sell cost for ${ingredient.name}.`
+                );
+            }
+
+            if (
+                !Number.isFinite(desiredQuantity) ||
+                desiredQuantity < 0
+            ) {
+                throw new Error(
+                    `Invalid desired quantity for ${ingredient.name}.`
+                );
+            }
+
+            updates.push({
+                id: ingredient.id,
+                name: ingredient.name,
+                buy_cost: buyCost,
+                sell_cost: sellCost,
+                desired_quantity: desiredQuantity
+            });
+
+        }
+
+        if (updates.length === 0) {
+
+            message.className =
+                "message success";
+
+            message.textContent =
+                "There are no ingredients to update.";
+
+            return;
+        }
+
+        await apiFetch(
+            "/ingredients/bulk-update",
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(updates)
+            }
+        );
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            "All ingredient changes saved successfully.";
+
+        await loadIngredients();
+        await loadInventory();
+
+        if (
+            currentUser &&
+            (
+                currentUser.role === "manager" ||
+                currentUser.role === "admin"
+            )
+        ) {
+            await loadOwnership();
+            await loadMyInventory();
+            await loadReconciliation();
+        }
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            error.message;
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// SALES - STOCK WARNING
+// ---------------------------------------------------------
+
+function checkSaleStock() {
+
+    const ingredientSelect =
+        document.getElementById(
+            "saleIngredient"
+        );
+
+    const quantityInput =
+        document.getElementById(
+            "saleQuantity"
+        );
+
+    const warning =
+        document.getElementById(
+            "saleStockWarning"
+        );
+
+    warning.innerHTML = "";
+
+    const ingredientId =
+        Number(ingredientSelect.value);
+
+    const quantity =
+        Number(quantityInput.value);
+
+    if (
+        !ingredientId ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0
+    ) {
+        return true;
+    }
+
+    const currentStock =
+        getCurrentStock(ingredientId);
+
+    const pendingQuantity =
+        getPendingSaleQuantity(ingredientId);
+
+    const availableStock =
+        Math.max(
+            0,
+            currentStock - pendingQuantity
+        );
+
+    if (quantity > availableStock) {
+
+        warning.className =
+            "stock-warning";
+
+        warning.innerHTML =
+            `<strong>Insufficient stock.</strong><br>` +
+            `Available: ${formatQuantity(
+                availableStock
+            )}<br>` +
+            `Requested: ${formatQuantity(
+                quantity
+            )}<br>` +
+            `Short by: ${formatQuantity(
+                quantity - availableStock
+            )}`;
+
+        return false;
+    }
+
+    warning.className =
+        "stock-ok";
+
+    warning.textContent =
+        `Available stock: ${formatQuantity(
+            availableStock
+        )}`;
+
+    return true;
+}
+
+
+document
+    .getElementById("saleQuantity")
+    .addEventListener(
+        "input",
+        checkSaleStock
+    );
+
+document
+    .getElementById("saleIngredient")
+    .addEventListener(
+        "change",
+        checkSaleStock
+    );
+
+
+// ---------------------------------------------------------
+// SALES - ADD TO BATCH
 // ---------------------------------------------------------
 
 document
     .getElementById("saleForm")
-    .addEventListener("submit", async event => {
+    .addEventListener(
+        "submit",
+        async event => {
 
-        event.preventDefault();
+            event.preventDefault();
 
-        const ingredientId =
-            document.getElementById("saleIngredient").value;
+            const ingredientSelect =
+                document.getElementById(
+                    "saleIngredient"
+                );
+
+            const quantityInput =
+                document.getElementById(
+                    "saleQuantity"
+                );
+
+            const ingredientId =
+                Number(ingredientSelect.value);
+
+            const quantity =
+                Number(quantityInput.value);
+
+            const message =
+                document.getElementById(
+                    "saleMessage"
+                );
+
+            if (
+                !ingredientId ||
+                !Number.isFinite(quantity) ||
+                quantity <= 0
+            ) {
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    "Select an ingredient and enter a valid quantity.";
+
+                return;
+            }
+
+            if (!checkSaleStock()) {
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    "Sale was not added because there is not enough stock.";
+
+                return;
+            }
+
+            const selectedOption =
+                ingredientSelect.options[
+                    ingredientSelect.selectedIndex
+                ];
+
+            const ingredientName =
+                selectedOption.textContent;
+
+            const sellCost =
+                Number(
+                    selectedOption.dataset.sellCost
+                );
+
+            saleBatch.push({
+                ingredient_id: ingredientId,
+                ingredient_name: ingredientName,
+                quantity: quantity,
+                sell_cost: sellCost
+            });
+
+            renderSaleBatch();
+
+            ingredientSelect.value = "";
+            quantityInput.value = "";
+
+            document.getElementById(
+                "saleStockWarning"
+            ).innerHTML = "";
+
+            message.className =
+                "message success";
+
+            message.textContent =
+                `${ingredientName} added to the sale.`;
+
+        }
+    );
+
+
+// ---------------------------------------------------------
+// RENDER SALE BATCH
+// ---------------------------------------------------------
+
+function renderSaleBatch() {
+
+    const container =
+        document.getElementById(
+            "saleBatchContainer"
+        );
+
+    const table =
+        document.getElementById(
+            "saleBatchTable"
+        );
+
+    const count =
+        document.getElementById(
+            "saleBatchCount"
+        );
+
+    const totalElement =
+        document.getElementById(
+            "saleBatchValue"
+        );
+
+    table.innerHTML = "";
+
+    count.textContent =
+        saleBatch.length;
+
+    let totalValue = 0;
+
+    if (saleBatch.length === 0) {
+
+        container.style.display = "none";
+
+        totalElement.textContent =
+            "0.00g";
+
+        return;
+    }
+
+    container.style.display = "block";
+
+    saleBatch.forEach((item, index) => {
 
         const quantity =
-            document.getElementById("saleQuantity").value;
+            Number(item.quantity) || 0;
 
-        const message =
-            document.getElementById("saleMessage");
+        const sellCost =
+            Number(item.sell_cost) || 0;
+
+        const itemValue =
+            quantity * sellCost;
+
+        totalValue += itemValue;
+
+        const row =
+            document.createElement("tr");
+
+        row.innerHTML = `
+            <td>
+                ${escapeHtml(
+                    item.ingredient_name
+                )}
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    class="batch-quantity-input"
+                    min="0.001"
+                    step="0.001"
+                    value="${quantity}"
+                    onchange="updateSaleQuantity(${index}, this.value)"
+                    onkeydown="if(event.key === 'Enter') this.blur();"
+                >
+            </td>
+
+            <td>
+                ${formatCost(itemValue)}
+            </td>
+
+            <td>
+                <button
+                    class="batch-remove-btn"
+                    onclick="removeSaleItem(${index})"
+                >
+                    Remove
+                </button>
+            </td>
+        `;
+
+        table.appendChild(row);
+
+    });
+
+    totalElement.textContent =
+        formatCost(totalValue);
+
+}
 
 
-        try {
+// ---------------------------------------------------------
+// UPDATE SALE QUANTITY
+// ---------------------------------------------------------
 
-            const result = await apiFetch(
-                `/sales?ingredient_id=${ingredientId}&quantity=${quantity}`,
+function updateSaleQuantity(index, value) {
+
+    const quantity =
+        Number(value);
+
+    const message =
+        document.getElementById(
+            "saleMessage"
+        );
+
+    if (
+        !Number.isFinite(quantity) ||
+        quantity <= 0
+    ) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Quantity must be greater than zero.";
+
+        renderSaleBatch();
+
+        return;
+    }
+
+    const item =
+        saleBatch[index];
+
+    const currentStock =
+        getCurrentStock(
+            item.ingredient_id
+        );
+
+    const otherPendingQuantity =
+        saleBatch
+            .filter(
+                (_, itemIndex) =>
+                    itemIndex !== index &&
+                    Number(
+                        saleBatch[itemIndex].ingredient_id
+                    ) ===
+                    Number(item.ingredient_id)
+            )
+            .reduce(
+                (total, batchItem) =>
+                    total +
+                    Number(batchItem.quantity),
+                0
+            );
+
+    const availableStock =
+        Math.max(
+            0,
+            currentStock -
+            otherPendingQuantity
+        );
+
+    if (quantity > availableStock) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            `Cannot set ${item.ingredient_name} to ` +
+            `${formatQuantity(quantity)}. ` +
+            `Only ${formatQuantity(
+                availableStock
+            )} is available.`;
+
+        renderSaleBatch();
+
+        return;
+    }
+
+    saleBatch[index].quantity =
+        quantity;
+
+    message.className =
+        "message";
+
+    message.textContent = "";
+
+    renderSaleBatch();
+
+}
+
+
+// ---------------------------------------------------------
+// REMOVE SALE ITEM
+// ---------------------------------------------------------
+
+function removeSaleItem(index) {
+
+    saleBatch.splice(index, 1);
+
+    renderSaleBatch();
+
+}
+
+
+// ---------------------------------------------------------
+// SUBMIT ALL SALES
+// ---------------------------------------------------------
+
+async function submitAllSales() {
+
+    const message =
+        document.getElementById(
+            "saleMessage"
+        );
+
+    if (saleBatch.length === 0) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "There are no items in the sale.";
+
+        return;
+    }
+
+    try {
+
+        await refreshInventoryCache();
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Could not verify current inventory.";
+
+        return;
+    }
+
+    const batchByIngredient = {};
+
+    for (const item of saleBatch) {
+
+        const id =
+            Number(item.ingredient_id);
+
+        batchByIngredient[id] =
+            (
+                batchByIngredient[id] || 0
+            ) +
+            Number(item.quantity);
+    }
+
+    for (const ingredientId in batchByIngredient) {
+
+        const requested =
+            batchByIngredient[ingredientId];
+
+        const available =
+            getCurrentStock(
+                Number(ingredientId)
+            );
+
+        if (requested > available) {
+
+            const inventoryItem =
+                getInventoryItem(
+                    Number(ingredientId)
+                );
+
+            const name =
+                inventoryItem
+                    ? inventoryItem.ingredient_name
+                    : "Ingredient";
+
+            message.className =
+                "message error";
+
+            message.innerHTML =
+                `<strong>Sale cannot be submitted.</strong><br>` +
+                `${escapeHtml(name)} has only ` +
+                `${formatQuantity(available)} available, ` +
+                `but this sale requires ` +
+                `${formatQuantity(requested)}.`;
+
+            checkSaleStock();
+
+            return;
+        }
+    }
+
+    const confirmed =
+        confirm(
+            `Submit ${saleBatch.length} sale item(s) ` +
+            `worth ${document.getElementById(
+                "saleBatchValue"
+            ).textContent}?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const items =
+        [...saleBatch];
+
+    const submitButton =
+        document.getElementById(
+            "submitSalesButton"
+        );
+
+    submitButton.disabled = true;
+
+    let completed = 0;
+
+    try {
+
+        for (const item of items) {
+
+            await apiFetch(
+                `/sales` +
+                `?ingredient_id=${item.ingredient_id}` +
+                `&quantity=${item.quantity}`,
                 {
                     method: "POST"
                 }
             );
 
-            message.className = "message success";
-
-            message.textContent =
-                `Sale recorded successfully. Sale #${result.sale_id}`;
-
-            document.getElementById("saleQuantity").value = "";
-
-            await loadInventory();
-
-            if (currentUser.role === "manager") {
-                await loadPayouts();
-            }
-
-        } catch (error) {
-
-            message.className = "message error";
-            message.textContent = error.message;
-
+            completed++;
         }
 
-    });
+        saleBatch = [];
+
+        renderSaleBatch();
+
+        document.getElementById(
+            "saleIngredient"
+        ).value = "";
+
+        document.getElementById(
+            "saleQuantity"
+        ).value = "";
+
+        document.getElementById(
+            "saleStockWarning"
+        ).innerHTML = "";
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            `${completed} sale item(s) recorded successfully.`;
+
+        await loadInventory();
+        await loadMyInventory();
+
+        if (
+            currentUser &&
+            (
+                currentUser.role === "manager" ||
+                currentUser.role === "admin"
+            )
+        ) {
+            await loadPayouts();
+            await loadOwnership();
+            await loadReconciliation();
+        }
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            `${completed} item(s) recorded before the error: ` +
+            `${error.message}`;
+
+        saleBatch =
+            saleBatch.slice(completed);
+
+        renderSaleBatch();
+
+        await loadInventory();
+        await loadMyInventory();
+
+        if (
+            currentUser &&
+            (
+                currentUser.role === "manager" ||
+                currentUser.role === "admin"
+            )
+        ) {
+            await loadPayouts();
+            await loadOwnership();
+            await loadReconciliation();
+        }
+
+    } finally {
+
+        submitButton.disabled = false;
+
+    }
+
+}
 
 
 // ---------------------------------------------------------
-// DEPOSITS
+// DEPOSITS - WARNING
+// ---------------------------------------------------------
+
+function checkDepositStock() {
+
+    const ingredientSelect =
+        document.getElementById(
+            "depositIngredient"
+        );
+
+    const quantityInput =
+        document.getElementById(
+            "depositQuantity"
+        );
+
+    const warning =
+        document.getElementById(
+            "depositWarning"
+        );
+
+    warning.innerHTML = "";
+
+    const ingredientId =
+        Number(ingredientSelect.value);
+
+    const quantity =
+        Number(quantityInput.value);
+
+    if (
+        !ingredientId ||
+        !Number.isFinite(quantity) ||
+        quantity <= 0
+    ) {
+        return null;
+    }
+
+    const currentStock =
+        getCurrentStock(ingredientId);
+
+    const desiredStock =
+        getDesiredStock(ingredientId);
+
+    const pendingDeposits =
+        getPendingDepositQuantity(
+            ingredientId
+        );
+
+    const projectedStock =
+        currentStock +
+        pendingDeposits;
+
+    const remainingCapacity =
+        Math.max(
+            0,
+            desiredStock -
+            projectedStock
+        );
+
+    const employeeCredit =
+        Math.min(
+            quantity,
+            remainingCapacity
+        );
+
+    const storeCredit =
+        Math.max(
+            0,
+            quantity -
+            employeeCredit
+        );
+
+    if (storeCredit > 0) {
+
+        warning.className =
+            "stock-warning";
+
+        warning.innerHTML =
+            `<strong>Overstock warning.</strong><br>` +
+            `Current inventory: ${formatQuantity(
+                currentStock
+            )}<br>` +
+            `Already pending in this batch: ${formatQuantity(
+                pendingDeposits
+            )}<br>` +
+            `Desired inventory: ${formatQuantity(
+                desiredStock
+            )}<br><br>` +
+            `Your inventory will receive: ` +
+            `<strong>${formatQuantity(
+                employeeCredit
+            )}</strong><br>` +
+            `Store will receive: ` +
+            `<strong>${formatQuantity(
+                storeCredit
+            )}</strong><br><br>` +
+            `The Store receives the excess because ` +
+            `this deposit would put inventory above the desired quantity.`;
+
+    } else {
+
+        warning.className =
+            "stock-ok";
+
+        warning.innerHTML =
+            `This deposit fits within the desired inventory.<br>` +
+            `You will receive credit for ` +
+            `<strong>${formatQuantity(
+                employeeCredit
+            )}</strong>.`;
+    }
+
+    return {
+        currentStock,
+        desiredStock,
+        pendingDeposits,
+        employeeCredit,
+        storeCredit
+    };
+}
+
+
+document
+    .getElementById("depositQuantity")
+    .addEventListener(
+        "input",
+        checkDepositStock
+    );
+
+document
+    .getElementById("depositIngredient")
+    .addEventListener(
+        "change",
+        checkDepositStock
+    );
+
+
+// ---------------------------------------------------------
+// DEPOSITS - ADD TO BATCH
 // ---------------------------------------------------------
 
 document
     .getElementById("depositForm")
-    .addEventListener("submit", async event => {
+    .addEventListener(
+        "submit",
+        async event => {
 
-        event.preventDefault();
+            event.preventDefault();
 
-        const ingredientId =
-            document.getElementById("depositIngredient").value;
+            const ingredientSelect =
+                document.getElementById(
+                    "depositIngredient"
+                );
 
-        const quantity =
-            document.getElementById("depositQuantity").value;
+            const quantityInput =
+                document.getElementById(
+                    "depositQuantity"
+                );
 
-        const message =
-            document.getElementById("depositMessage");
+            const ingredientId =
+                Number(ingredientSelect.value);
+
+            const quantity =
+                Number(quantityInput.value);
+
+            const message =
+                document.getElementById(
+                    "depositMessage"
+                );
+
+            if (
+                !ingredientId ||
+                !Number.isFinite(quantity) ||
+                quantity <= 0
+            ) {
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    "Select an ingredient and enter a valid quantity.";
+
+                return;
+            }
+
+            const result =
+                checkDepositStock();
+
+            if (!result) {
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    "Select an ingredient and enter a valid quantity.";
+
+                return;
+            }
+
+            const selectedOption =
+                ingredientSelect.options[
+                    ingredientSelect.selectedIndex
+                ];
+
+            const ingredientName =
+                selectedOption.textContent;
+
+            const employeeCredit =
+                result.employeeCredit;
+
+            const storeCredit =
+                result.storeCredit;
+
+            if (storeCredit > 0) {
+
+                const confirmed =
+                    confirm(
+                        `${ingredientName}\n\n` +
+                        `Current inventory: ` +
+                        `${formatQuantity(
+                            result.currentStock
+                        )}\n` +
+                        `Desired inventory: ` +
+                        `${formatQuantity(
+                            result.desiredStock
+                        )}\n\n` +
+                        `Your inventory: ` +
+                        `${formatQuantity(
+                            employeeCredit
+                        )}\n` +
+                        `Store inventory: ` +
+                        `${formatQuantity(
+                            storeCredit
+                        )}\n\n` +
+                        `The Store receives the excess because ` +
+                        `this deposit would exceed the desired quantity.\n\n` +
+                        `Add this deposit to the batch?`
+                    );
+
+                if (!confirmed) {
+
+                    message.className =
+                        "message warning";
+
+                    message.textContent =
+                        `${ingredientName} was not added.`;
+
+                    return;
+                }
+            }
+
+            depositBatch.push({
+                ingredient_id: ingredientId,
+                ingredient_name: ingredientName,
+                quantity: quantity,
+                employee_credit: employeeCredit,
+                store_credit: storeCredit
+            });
+
+            renderDepositBatch();
+
+            ingredientSelect.value = "";
+            quantityInput.value = "";
+
+            document.getElementById(
+                "depositWarning"
+            ).innerHTML = "";
+
+            message.className =
+                storeCredit > 0
+                    ? "message warning"
+                    : "message success";
+
+            if (storeCredit > 0) {
+
+                message.innerHTML =
+                    `${escapeHtml(
+                        ingredientName
+                    )} added.<br>` +
+                    `Your inventory: ` +
+                    `<strong>${formatQuantity(
+                        employeeCredit
+                    )}</strong><br>` +
+                    `Store inventory: ` +
+                    `<strong>${formatQuantity(
+                        storeCredit
+                    )}</strong>`;
+
+            } else {
+
+                message.textContent =
+                    `${ingredientName} added. ` +
+                    `You receive credit for ` +
+                    `${formatQuantity(
+                        employeeCredit
+                    )}.`;
+
+            }
+
+        }
+    );
 
 
-        try {
+// ---------------------------------------------------------
+// RENDER DEPOSIT BATCH
+// ---------------------------------------------------------
+
+function renderDepositBatch() {
+
+    const container =
+        document.getElementById(
+            "depositBatchContainer"
+        );
+
+    const table =
+        document.getElementById(
+            "depositBatchTable"
+        );
+
+    const count =
+        document.getElementById(
+            "depositBatchCount"
+        );
+
+    table.innerHTML = "";
+
+    count.textContent =
+        depositBatch.length;
+
+    if (depositBatch.length === 0) {
+
+        container.style.display = "none";
+
+        return;
+    }
+
+    container.style.display = "block";
+
+    depositBatch.forEach((item, index) => {
+
+        const row =
+            document.createElement("tr");
+
+        row.innerHTML = `
+            <td>
+                ${escapeHtml(
+                    item.ingredient_name
+                )}
+            </td>
+
+            <td>
+                ${formatQuantity(
+                    item.quantity
+                )}
+            </td>
+
+            <td>
+                ${formatQuantity(
+                    item.employee_credit
+                )}
+            </td>
+
+            <td>
+                ${formatQuantity(
+                    item.store_credit
+                )}
+            </td>
+
+            <td>
+                <button
+                    class="batch-remove-btn"
+                    onclick="removeDepositItem(${index})"
+                >
+                    Remove
+                </button>
+            </td>
+        `;
+
+        table.appendChild(row);
+
+    });
+
+}
+
+
+// ---------------------------------------------------------
+// REMOVE DEPOSIT ITEM
+// ---------------------------------------------------------
+
+function removeDepositItem(index) {
+
+    depositBatch.splice(index, 1);
+
+    renderDepositBatch();
+
+    checkDepositStock();
+
+}
+
+
+// ---------------------------------------------------------
+// SUBMIT ALL DEPOSITS
+// ---------------------------------------------------------
+
+async function submitAllDeposits() {
+
+    const message =
+        document.getElementById(
+            "depositMessage"
+        );
+
+    if (depositBatch.length === 0) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "There are no items in the deposit.";
+
+        return;
+    }
+
+    try {
+
+        await refreshInventoryCache();
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Could not verify current inventory.";
+
+        return;
+    }
+
+    const confirmed =
+        confirm(
+            `Submit ${depositBatch.length} deposit item(s)?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const items =
+        [...depositBatch];
+
+    const submitButton =
+        document.getElementById(
+            "submitDepositsButton"
+        );
+
+    submitButton.disabled = true;
+
+    let completed = 0;
+
+    try {
+
+        for (const item of items) {
 
             await apiFetch(
-                `/deposits?ingredient_id=${ingredientId}&quantity=${quantity}`,
+                `/deposits` +
+                `?ingredient_id=${item.ingredient_id}` +
+                `&quantity=${item.quantity}`,
                 {
                     method: "POST"
                 }
             );
 
-            message.className = "message success";
-            message.textContent = "Deposit recorded successfully.";
-
-            document.getElementById("depositQuantity").value = "";
-
-            await loadInventory();
-
-        } catch (error) {
-
-            message.className = "message error";
-            message.textContent = error.message;
-
+            completed++;
         }
 
-    });
+        depositBatch = [];
+
+        renderDepositBatch();
+
+        document.getElementById(
+            "depositIngredient"
+        ).value = "";
+
+        document.getElementById(
+            "depositQuantity"
+        ).value = "";
+
+        document.getElementById(
+            "depositWarning"
+        ).innerHTML = "";
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            `${completed} deposit item(s) recorded successfully.`;
+
+        await loadInventory();
+        await loadMyInventory();
+
+        if (
+            currentUser &&
+            (
+                currentUser.role === "manager" ||
+                currentUser.role === "admin"
+            )
+        ) {
+            await loadOwnership();
+            await loadReconciliation();
+        }
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            `${completed} item(s) recorded before the error: ` +
+            `${error.message}`;
+
+        depositBatch =
+            depositBatch.slice(completed);
+
+        renderDepositBatch();
+
+        await loadInventory();
+        await loadMyInventory();
+
+        if (
+            currentUser &&
+            (
+                currentUser.role === "manager" ||
+                currentUser.role === "admin"
+            )
+        ) {
+            await loadOwnership();
+            await loadReconciliation();
+        }
+
+    } finally {
+
+        submitButton.disabled = false;
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// INVENTORY CACHE
+// ---------------------------------------------------------
+
+async function refreshInventoryCache() {
+
+    const inventory =
+        await apiFetch("/inventory");
+
+    inventoryCache =
+        Array.isArray(inventory)
+            ? inventory
+            : [];
+
+    return inventoryCache;
+}
 
 
 // ---------------------------------------------------------
@@ -693,27 +2945,61 @@ async function loadInventory() {
 
     try {
 
-        const inventory = await apiFetch("/inventory");
+        const inventory =
+            await refreshInventoryCache();
 
         const table =
-            document.getElementById("inventoryTable");
+            document.getElementById(
+                "inventoryTable"
+            );
 
         table.innerHTML = "";
 
+        if (inventory.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td
+                        colspan="4"
+                        class="empty-message"
+                    >
+                        No ingredients.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
 
         inventory.forEach(item => {
 
-            const row = document.createElement("tr");
-
-            const deposited =
-                new Date(item.deposited_at).toLocaleString();
+            const row =
+                document.createElement("tr");
 
             row.innerHTML = `
-                <td>${item.employee_name}</td>
-                <td>${item.ingredient_name}</td>
-                <td>${item.quantity}</td>
-                <td>${item.quantity_remaining}</td>
-                <td>${deposited}</td>
+                <td>
+                    ${escapeHtml(
+                        item.ingredient_name
+                    )}
+                </td>
+
+                <td>
+                    ${formatQuantity(
+                        item.current_quantity
+                    )}
+                </td>
+
+                <td>
+                    ${formatQuantity(
+                        item.desired_quantity
+                    )}
+                </td>
+
+                <td class="inventory-needed">
+                    ${formatQuantity(
+                        item.needed_quantity
+                    )}
+                </td>
             `;
 
             table.appendChild(row);
@@ -723,6 +3009,1629 @@ async function loadInventory() {
     } catch (error) {
 
         console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// MY INVENTORY
+// ---------------------------------------------------------
+
+async function loadMyInventory() {
+
+    try {
+
+        const inventory =
+            await apiFetch(
+                "/my-inventory"
+            );
+
+        const table =
+            document.getElementById(
+                "myInventoryTable"
+            );
+
+        const totalElement =
+            document.getElementById(
+                "myInventoryTotal"
+            );
+
+        const titleElement =
+            document.getElementById(
+                "myInventoryTitle"
+            );
+
+        table.innerHTML = "";
+
+        if (currentUser) {
+
+            titleElement.textContent =
+                `${currentUser.username}'s Inventory`;
+
+        }
+
+        let totalCredited = 0;
+
+        inventory.forEach(item => {
+
+            totalCredited +=
+                Number(
+                    item.credited_amount
+                ) || 0;
+
+        });
+
+        totalElement.textContent =
+            formatCost(totalCredited);
+
+        if (inventory.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td
+                        colspan="4"
+                        class="empty-message"
+                    >
+                        You currently own no inventory.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        inventory.forEach(item => {
+
+            const row =
+                document.createElement("tr");
+
+            row.innerHTML = `
+                <td>
+                    ${escapeHtml(
+                        item.ingredient_name
+                    )}
+                </td>
+
+                <td>
+                    ${formatQuantity(
+                        item.quantity
+                    )}
+                </td>
+
+                <td>
+                    ${formatCost(
+                        item.credited_amount
+                    )}
+                </td>
+
+                <td>
+                    ${formatTimestamp(
+                        item.deposited_at
+                    )}
+                </td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// OWNERSHIP
+// ---------------------------------------------------------
+
+async function loadOwnership() {
+
+    if (
+        !currentUser ||
+        (
+            currentUser.role !== "manager" &&
+            currentUser.role !== "admin"
+        )
+    ) {
+        return;
+    }
+
+    try {
+
+        const ownership =
+            await apiFetch(
+                "/ownership"
+            );
+
+        const table =
+            document.getElementById(
+                "ownershipTable"
+            );
+
+        const summary =
+            document.getElementById(
+                "ownershipSummary"
+            );
+
+        table.innerHTML = "";
+        summary.innerHTML = "";
+
+        if (ownership.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td
+                        colspan="5"
+                        class="empty-message"
+                    >
+                        No inventory is currently owned.
+                    </td>
+                </tr>
+            `;
+
+            renderOwnershipChart([]);
+
+            return;
+        }
+
+        const employeeTotals = {};
+        let storeTotal = 0;
+
+        ownership.forEach(item => {
+
+            const quantity =
+                Number(item.quantity) || 0;
+
+            if (item.owner_name === "Store") {
+
+                storeTotal +=
+                    quantity *
+                    getIngredientBuyCost(
+                        item.ingredient_id
+                    );
+
+            } else {
+
+                employeeTotals[item.owner_name] =
+                    (
+                        employeeTotals[item.owner_name] || 0
+                    ) +
+                    (
+                        Number(
+                            item.credited_amount
+                        ) || 0
+                    );
+
+            }
+
+        });
+
+        const chartData = [];
+
+        Object.keys(employeeTotals)
+            .sort()
+            .forEach(employeeName => {
+
+                chartData.push({
+                    name: employeeName,
+                    value:
+                        employeeTotals[
+                            employeeName
+                        ]
+                });
+
+            });
+
+        if (storeTotal > 0) {
+
+            chartData.push({
+                name: "Store",
+                value: storeTotal
+            });
+
+        }
+
+        renderOwnershipChart(chartData);
+
+        Object.keys(employeeTotals)
+            .sort()
+            .forEach(employeeName => {
+
+                const summaryItem =
+                    document.createElement("div");
+
+                summaryItem.className =
+                    "ownership-summary-item";
+
+                summaryItem.innerHTML = `
+                    <div class="ownership-summary-name">
+                        ${escapeHtml(employeeName)}
+                    </div>
+
+                    <div class="ownership-summary-amount">
+                        ${formatCost(
+                            employeeTotals[employeeName]
+                        )}
+                    </div>
+                `;
+
+                summary.appendChild(
+                    summaryItem
+                );
+
+            });
+
+        const storeSummary =
+            document.createElement("div");
+
+        storeSummary.className =
+            "ownership-summary-item store-summary";
+
+        storeSummary.innerHTML = `
+            <div class="ownership-summary-name">
+                Store
+            </div>
+
+            <div class="ownership-summary-amount">
+                ${formatCost(storeTotal)}
+            </div>
+        `;
+
+        summary.appendChild(
+            storeSummary
+        );
+
+        const sortedOwnership =
+            [...ownership].sort(
+                (a, b) => {
+
+                    const aIsStore =
+                        a.owner_name === "Store";
+
+                    const bIsStore =
+                        b.owner_name === "Store";
+
+                    if (aIsStore && !bIsStore) {
+                        return -1;
+                    }
+
+                    if (!aIsStore && bIsStore) {
+                        return 1;
+                    }
+
+                    if (
+                        a.ingredient_name !==
+                        b.ingredient_name
+                    ) {
+                        return a.ingredient_name
+                            .localeCompare(
+                                b.ingredient_name
+                            );
+                    }
+
+                    return String(
+                        a.owner_name
+                    ).localeCompare(
+                        String(
+                            b.owner_name
+                        )
+                    );
+                }
+            );
+
+        sortedOwnership.forEach(item => {
+
+            const row =
+                document.createElement("tr");
+
+            if (item.owner_name === "Store") {
+
+                row.className =
+                    "store-row";
+
+            }
+
+            const credited =
+                item.owner_name === "Store"
+                    ? "—"
+                    : formatCost(
+                        item.credited_amount
+                    );
+
+            const deposited =
+                item.owner_name === "Store"
+                    ? "—"
+                    : formatTimestamp(
+                        item.deposited_at
+                    );
+
+            row.innerHTML = `
+                <td>
+                    ${escapeHtml(
+                        item.ingredient_name
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        item.owner_name
+                    )}
+                </td>
+
+                <td>
+                    ${formatQuantity(
+                        item.quantity
+                    )}
+                </td>
+
+                <td>
+                    ${credited}
+                </td>
+
+                <td>
+                    ${deposited}
+                </td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// OWNERSHIP PIE CHART
+// ---------------------------------------------------------
+
+function renderOwnershipChart(chartData) {
+
+    const chart =
+        document.getElementById(
+            "ownershipChart"
+        );
+
+    const legend =
+        document.getElementById(
+            "ownershipChartLegend"
+        );
+
+    const totalElement =
+        document.getElementById(
+            "ownershipChartTotal"
+        );
+
+    if (!chart || !legend || !totalElement) {
+        return;
+    }
+
+    legend.innerHTML = "";
+
+    const total =
+        chartData.reduce(
+            (sum, item) =>
+                sum + Number(item.value || 0),
+            0
+        );
+
+    totalElement.textContent =
+        formatCost(total);
+
+    if (
+        chartData.length === 0 ||
+        total <= 0
+    ) {
+
+        chart.style.background =
+            "#ddd";
+
+        legend.innerHTML =
+            `<div class="ownership-chart-empty">
+                No ownership data available.
+            </div>`;
+
+        return;
+    }
+
+    const colors = chartData.map(
+        (_, index) => {
+
+            const hue =
+                Math.round(
+                    (
+                        index /
+                        chartData.length
+                    ) * 360
+                );
+
+            return `hsl(${hue}, 65%, 55%)`;
+        }
+    );
+
+    let currentPercentage = 0;
+
+    const gradientParts = [];
+
+    chartData.forEach(
+        (item, index) => {
+
+            const value =
+                Number(item.value) || 0;
+
+            const percentage =
+                (
+                    value /
+                    total
+                ) * 100;
+
+            const start =
+                currentPercentage;
+
+            const end =
+                currentPercentage +
+                percentage;
+
+            gradientParts.push(
+                `${colors[index]} ${start}% ${end}%`
+            );
+
+            currentPercentage =
+                end;
+
+        }
+    );
+
+    chart.style.background =
+        `conic-gradient(${gradientParts.join(", ")})`;
+
+    chartData.forEach(
+        (item, index) => {
+
+            const value =
+                Number(item.value) || 0;
+
+            const percentage =
+                (
+                    value /
+                    total
+                ) * 100;
+
+            const legendItem =
+                document.createElement("div");
+
+            legendItem.className =
+                "ownership-chart-legend-item";
+
+            legendItem.innerHTML = `
+                <div
+                    class="ownership-chart-legend-color"
+                    style="background: ${colors[index]};"
+                ></div>
+
+                <div class="ownership-chart-legend-name">
+                    ${escapeHtml(item.name)}
+                </div>
+
+                <div class="ownership-chart-legend-value">
+                    ${percentage.toFixed(1)}%
+                    (${formatCost(value)})
+                </div>
+            `;
+
+            legend.appendChild(
+                legendItem
+            );
+
+        }
+    );
+
+}
+
+
+// ---------------------------------------------------------
+// INGREDIENT BUY COST LOOKUP
+// ---------------------------------------------------------
+
+function getIngredientBuyCost(ingredientId) {
+
+    const input =
+        document.getElementById(
+            `buy-${ingredientId}`
+        );
+
+    if (!input) {
+        return 0;
+    }
+
+    const value =
+        Number(input.value);
+
+    return Number.isFinite(value)
+        ? value
+        : 0;
+}
+
+
+// ---------------------------------------------------------
+// RECONCILIATION
+// ---------------------------------------------------------
+
+async function loadReconciliation() {
+
+    if (
+        !currentUser ||
+        (
+            currentUser.role !== "manager" &&
+            currentUser.role !== "admin"
+        )
+    ) {
+        return;
+    }
+
+    try {
+
+        const inventory =
+            await apiFetch("/inventory");
+
+        const ownership =
+            await apiFetch("/ownership");
+
+        const table =
+            document.getElementById(
+                "reconcileTable"
+            );
+
+        table.innerHTML = "";
+
+        const employeeDepositsByIngredient = {};
+
+        ownership.forEach(item => {
+
+            if (
+                item.owner_name === "Store"
+            ) {
+                return;
+            }
+
+            const ingredientId =
+                Number(item.ingredient_id);
+
+            if (
+                !employeeDepositsByIngredient[
+                    ingredientId
+                ]
+            ) {
+                employeeDepositsByIngredient[
+                    ingredientId
+                ] = [];
+            }
+
+            employeeDepositsByIngredient[
+                ingredientId
+            ].push(item);
+
+        });
+
+        inventory.forEach(item => {
+
+            const ingredientId =
+                Number(item.ingredient_id);
+
+            const posQuantity =
+                Number(
+                    item.current_quantity
+                ) || 0;
+
+            const employeeDeposits =
+                employeeDepositsByIngredient[
+                    ingredientId
+                ] || [];
+
+            const storeQuantity =
+                employeeDeposits.length > 0
+                    ? Math.max(
+                        0,
+                        posQuantity -
+                        employeeDeposits.reduce(
+                            (
+                                total,
+                                deposit
+                            ) =>
+                                total +
+                                (
+                                    Number(
+                                        deposit.quantity
+                                    ) || 0
+                                ),
+                            0
+                        )
+                    )
+                    : posQuantity;
+
+            const row =
+                document.createElement("tr");
+
+            row.innerHTML = `
+                <td>
+                    ${escapeHtml(
+                        item.ingredient_name
+                    )}
+                </td>
+
+                <td>
+                    ${formatQuantity(
+                        posQuantity
+                    )}
+                </td>
+
+                <td>
+                    <input
+                        type="number"
+                        class="reconcile-input"
+                        min="0"
+                        step="0.001"
+                        id="physical-${ingredientId}"
+                        value="${formatQuantity(
+                            posQuantity
+                        )}"
+                        oninput="updateReconcilePreview(${ingredientId})"
+                    >
+                </td>
+
+                <td id="difference-${ingredientId}">
+                    <span class="reconcile-difference-zero">
+                        0
+                    </span>
+                </td>
+
+                <td>
+                    <button
+                        onclick="openReconciliation(
+                            ${ingredientId},
+                            '${escapeJs(
+                                item.ingredient_name
+                            )}',
+                            ${posQuantity},
+                            ${storeQuantity},
+                            ${JSON.stringify(
+                                employeeDeposits
+                            ).replace(/"/g, "&quot;")}
+                        )"
+                    >
+                        Reconcile
+                    </button>
+                </td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+        if (inventory.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td
+                        colspan="5"
+                        class="empty-message"
+                    >
+                        No ingredients.
+                    </td>
+                </tr>
+            `;
+
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById(
+            "reconcileMessage"
+        ).className =
+            "message error";
+
+        document.getElementById(
+            "reconcileMessage"
+        ).textContent =
+            error.message;
+
+    }
+
+}
+
+
+function updateReconcilePreview(ingredientId) {
+
+    const input =
+        document.getElementById(
+            `physical-${ingredientId}`
+        );
+
+    const differenceCell =
+        document.getElementById(
+            `difference-${ingredientId}`
+        );
+
+    if (!input || !differenceCell) {
+        return;
+    }
+
+    const physical =
+        Number(input.value);
+
+    const inventoryItem =
+        getInventoryItem(ingredientId);
+
+    if (
+        !inventoryItem ||
+        !Number.isFinite(physical) ||
+        physical < 0
+    ) {
+
+        differenceCell.innerHTML =
+            `<span class="reconcile-difference-zero">
+                Invalid
+            </span>`;
+
+        return;
+    }
+
+    const pos =
+        Number(
+            inventoryItem.current_quantity
+        ) || 0;
+
+    const difference =
+        physical - pos;
+
+    if (difference > 0) {
+
+        differenceCell.innerHTML =
+            `<span class="reconcile-difference-positive">
+                +${formatQuantity(difference)}
+            </span>`;
+
+    } else if (difference < 0) {
+
+        differenceCell.innerHTML =
+            `<span class="reconcile-difference-negative">
+                ${formatQuantity(difference)}
+            </span>`;
+
+    } else {
+
+        differenceCell.innerHTML =
+            `<span class="reconcile-difference-zero">
+                0
+            </span>`;
+
+    }
+
+}
+
+
+function openReconciliation(
+    ingredientId,
+    ingredientName,
+    posQuantity,
+    storeQuantity,
+    employeeDeposits
+) {
+
+    const physicalInput =
+        document.getElementById(
+            `physical-${ingredientId}`
+        );
+
+    const physicalQuantity =
+        Number(
+            physicalInput.value
+        );
+
+    if (
+        !Number.isFinite(physicalQuantity) ||
+        physicalQuantity < 0
+    ) {
+
+        const message =
+            document.getElementById(
+                "reconcileMessage"
+            );
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Physical quantity must be zero or greater.";
+
+        return;
+    }
+
+    const difference =
+        physicalQuantity -
+        posQuantity;
+
+    reconciliationState = {
+        ingredientId,
+        ingredientName,
+        posQuantity,
+        physicalQuantity,
+        difference,
+        storeQuantity,
+        employeeDeposits:
+            Array.isArray(employeeDeposits)
+                ? employeeDeposits
+                : []
+    };
+
+    const editor =
+        document.getElementById(
+            "reconcileEditor"
+        );
+
+    const title =
+        document.getElementById(
+            "reconcileEditorTitle"
+        );
+
+    const summary =
+        document.getElementById(
+            "reconcileEditorSummary"
+        );
+
+    const allocationArea =
+        document.getElementById(
+            "reconcileAllocationArea"
+        );
+
+    const reason =
+        document.getElementById(
+            "reconcileReason"
+        );
+
+    title.textContent =
+        `Reconcile ${ingredientName}`;
+
+    reason.value = "";
+
+    allocationArea.innerHTML = "";
+
+    if (difference === 0) {
+
+        summary.innerHTML = `
+            <div class="stock-ok">
+                <strong>No discrepancy.</strong><br>
+                POS and physical inventory are both
+                ${formatQuantity(posQuantity)}.
+            </div>
+        `;
+
+    } else if (difference > 0) {
+
+        summary.innerHTML = `
+            <div class="reconcile-overage">
+                <strong>Physical inventory is higher.</strong><br><br>
+
+                POS quantity:
+                ${formatQuantity(posQuantity)}<br>
+
+                Physical quantity:
+                ${formatQuantity(physicalQuantity)}<br>
+
+                Extra inventory:
+                <strong>${formatQuantity(
+                    difference
+                )}</strong><br><br>
+
+                This ${formatQuantity(
+                    difference
+                )} will become
+                <strong>Store-owned inventory</strong>.
+                No employee credit will be created.
+            </div>
+        `;
+
+    } else {
+
+        const shortage =
+            Math.abs(difference);
+
+        const storeReduction =
+            Math.min(
+                shortage,
+                storeQuantity
+            );
+
+        const employeeShortage =
+            Math.max(
+                0,
+                shortage -
+                storeReduction
+            );
+
+        summary.innerHTML = `
+            <div class="reconcile-shortage">
+                <strong>Physical inventory is lower.</strong><br><br>
+
+                POS quantity:
+                ${formatQuantity(posQuantity)}<br>
+
+                Physical quantity:
+                ${formatQuantity(physicalQuantity)}<br>
+
+                Shortage:
+                <strong>${formatQuantity(
+                    shortage
+                )}</strong><br><br>
+
+                Store inventory available:
+                <strong>${formatQuantity(
+                    storeQuantity
+                )}</strong><br>
+
+                Store inventory will be reduced first by:
+                <strong>${formatQuantity(
+                    storeReduction
+                )}</strong><br>
+
+                Remaining employee-owned shortage:
+                <strong>${formatQuantity(
+                    employeeShortage
+                )}</strong>
+            </div>
+        `;
+
+        if (employeeShortage > 0) {
+
+            renderEmployeeReconciliationInputs(
+                employeeShortage
+            );
+
+        } else {
+
+            allocationArea.innerHTML = `
+                <div class="stock-ok">
+                    Store inventory is sufficient to cover
+                    the entire shortage. No employee inventory
+                    needs to be changed.
+                </div>
+            `;
+
+        }
+
+    }
+
+    editor.style.display =
+        "block";
+
+    editor.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+}
+
+
+function renderEmployeeReconciliationInputs(
+    employeeShortage
+) {
+
+    const allocationArea =
+        document.getElementById(
+            "reconcileAllocationArea"
+        );
+
+    allocationArea.innerHTML = `
+        <div class="reconcile-detail">
+
+            <h4>
+                Employee Inventory Adjustment
+            </h4>
+
+            <p>
+                Store inventory is not sufficient.
+                Select the employee-owned deposits
+                that account for the remaining
+                ${formatQuantity(
+                    employeeShortage
+                )} unit shortage.
+            </p>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Deposit</th>
+                        <th>Owned</th>
+                        <th>Reduce</th>
+                    </tr>
+                </thead>
+
+                <tbody id="employeeReconcileTable"></tbody>
+
+            </table>
+
+            <div
+                id="employeeReconcileTotal"
+                class="message warning"
+            >
+                Employee reduction selected: 0
+            </div>
+
+        </div>
+    `;
+
+    const table =
+        document.getElementById(
+            "employeeReconcileTable"
+        );
+
+    reconciliationState.employeeDeposits
+        .forEach((deposit, index) => {
+
+            const quantity =
+                Number(
+                    deposit.quantity
+                ) || 0;
+
+            const row =
+                document.createElement("tr");
+
+            const employeeName =
+                deposit.owner_name ||
+                deposit.employee_name ||
+                "Employee";
+
+            const depositId =
+                deposit.deposit_id ||
+                deposit.id;
+
+            row.innerHTML = `
+                <td>
+                    ${escapeHtml(
+                        employeeName
+                    )}
+                </td>
+
+                <td>
+                    ${formatTimestamp(
+                        deposit.deposited_at
+                    )}
+                </td>
+
+                <td>
+                    ${formatQuantity(
+                        quantity
+                    )}
+                </td>
+
+                <td>
+                    <input
+                        type="number"
+                        class="employee-adjustment-input"
+                        min="0"
+                        max="${quantity}"
+                        step="0.001"
+                        value="0"
+                        data-deposit-id="${depositId}"
+                        data-max-quantity="${quantity}"
+                        oninput="updateEmployeeReconcileTotal(${employeeShortage})"
+                    >
+                </td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    if (
+        reconciliationState.employeeDeposits.length === 0
+    ) {
+
+        table.innerHTML = `
+            <tr>
+                <td
+                    colspan="4"
+                    class="empty-message"
+                >
+                    No employee-owned inventory is available.
+                </td>
+            </tr>
+        `;
+
+    }
+
+}
+
+
+function updateEmployeeReconcileTotal(
+    requiredAmount
+) {
+
+    const inputs =
+        document.querySelectorAll(
+            ".employee-adjustment-input"
+        );
+
+    let total = 0;
+
+    inputs.forEach(input => {
+
+        let value =
+            Number(input.value) || 0;
+
+        const max =
+            Number(
+                input.dataset.maxQuantity
+            ) || 0;
+
+        value =
+            Math.max(
+                0,
+                Math.min(
+                    value,
+                    max
+                )
+            );
+
+        input.value =
+            value;
+
+        total += value;
+
+    });
+
+    const totalElement =
+        document.getElementById(
+            "employeeReconcileTotal"
+        );
+
+    if (!totalElement) {
+        return;
+    }
+
+    const difference =
+        total -
+        requiredAmount;
+
+    if (Math.abs(difference) < 0.0005) {
+
+        totalElement.className =
+            "message success";
+
+        totalElement.textContent =
+            `Employee reduction selected: ` +
+            `${formatQuantity(total)}. ` +
+            `Required amount reached.`;
+
+    } else {
+
+        totalElement.className =
+            "message warning";
+
+        totalElement.textContent =
+            `Employee reduction selected: ` +
+            `${formatQuantity(total)}. ` +
+            `Required: ` +
+            `${formatQuantity(requiredAmount)}. ` +
+            `Remaining: ` +
+            `${formatQuantity(
+                Math.max(
+                    0,
+                    requiredAmount - total
+                )
+            )}`;
+
+    }
+
+}
+
+
+async function submitReconciliation() {
+
+    if (
+        !reconciliationState.ingredientId
+    ) {
+        return;
+    }
+
+    const message =
+        document.getElementById(
+            "reconcileMessage"
+        );
+
+    const reason =
+        document.getElementById(
+            "reconcileReason"
+        ).value.trim();
+
+    if (!reason) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "A reason is required for every inventory adjustment.";
+
+        return;
+    }
+
+    const difference =
+        reconciliationState.difference;
+
+    const employeeAdjustments = [];
+
+    if (difference < 0) {
+
+        const shortage =
+            Math.abs(difference);
+
+        const storeReduction =
+            Math.min(
+                shortage,
+                reconciliationState.storeQuantity
+            );
+
+        const employeeShortage =
+            Math.max(
+                0,
+                shortage -
+                storeReduction
+            );
+
+        if (employeeShortage > 0) {
+
+            const inputs =
+                document.querySelectorAll(
+                    ".employee-adjustment-input"
+                );
+
+            let selectedTotal = 0;
+
+            inputs.forEach(input => {
+
+                const quantity =
+                    Number(input.value) || 0;
+
+                if (quantity <= 0) {
+                    return;
+                }
+
+                selectedTotal += quantity;
+
+                employeeAdjustments.push({
+                    deposit_id:
+                        Number(
+                            input.dataset.depositId
+                        ),
+                    quantity
+                });
+
+            });
+
+            if (
+                Math.abs(
+                    selectedTotal -
+                    employeeShortage
+                ) > 0.0005
+            ) {
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    `Employee inventory reductions must total ` +
+                    `${formatQuantity(
+                        employeeShortage
+                    )}. ` +
+                    `Currently selected: ` +
+                    `${formatQuantity(
+                        selectedTotal
+                    )}.`;
+
+                return;
+            }
+
+        }
+
+    }
+
+    let confirmationMessage =
+        `Reconcile ${reconciliationState.ingredientName}?\n\n` +
+        `POS quantity: ` +
+        `${formatQuantity(
+            reconciliationState.posQuantity
+        )}\n` +
+        `Physical quantity: ` +
+        `${formatQuantity(
+            reconciliationState.physicalQuantity
+        )}\n` +
+        `Difference: ` +
+        `${formatQuantity(
+            difference
+        )}\n\n`;
+
+    if (difference > 0) {
+
+        confirmationMessage +=
+            `${formatQuantity(
+                difference
+            )} will become Store-owned inventory.\n\n`;
+
+    } else if (difference < 0) {
+
+        const shortage =
+            Math.abs(difference);
+
+        const storeReduction =
+            Math.min(
+                shortage,
+                reconciliationState.storeQuantity
+            );
+
+        confirmationMessage +=
+            `Store inventory reduction: ` +
+            `${formatQuantity(
+                storeReduction
+            )}\n` +
+            `Employee inventory reduction: ` +
+            `${formatQuantity(
+                shortage -
+                storeReduction
+            )}\n\n`;
+
+    } else {
+
+        confirmationMessage +=
+            "No inventory change is required.\n\n";
+
+    }
+
+    confirmationMessage +=
+        `Reason: ${reason}\n\n` +
+        `Submit this adjustment?`;
+
+    if (
+        !confirm(
+            confirmationMessage
+        )
+    ) {
+        return;
+    }
+
+    const submitButton =
+        document.getElementById(
+            "submitReconcileButton"
+        );
+
+    submitButton.disabled = true;
+
+    try {
+
+        await apiFetch(
+            "/reconcile",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    ingredient_id:
+                        reconciliationState.ingredientId,
+
+                    physical_quantity:
+                        reconciliationState.physicalQuantity,
+
+                    reason,
+
+                    employee_adjustments:
+                        employeeAdjustments
+                })
+            }
+        );
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            `${reconciliationState.ingredientName} ` +
+            `was reconciled successfully.`;
+
+        cancelReconciliation();
+
+        await loadInventory();
+        await loadMyInventory();
+        await loadOwnership();
+        await loadReconciliation();
+        await loadReconcileHistory();
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            error.message;
+
+    } finally {
+
+        submitButton.disabled = false;
+
+    }
+
+}
+
+
+function cancelReconciliation() {
+
+    reconciliationState = {
+        ingredientId: null,
+        ingredientName: "",
+        posQuantity: 0,
+        physicalQuantity: 0,
+        difference: 0,
+        storeQuantity: 0,
+        employeeDeposits: []
+    };
+
+    document.getElementById(
+        "reconcileEditor"
+    ).style.display = "none";
+
+    document.getElementById(
+        "reconcileAllocationArea"
+    ).innerHTML = "";
+
+    document.getElementById(
+        "reconcileReason"
+    ).value = "";
+
+}
+
+
+// ---------------------------------------------------------
+// RECONCILIATION HISTORY
+// ---------------------------------------------------------
+
+async function loadReconcileHistory() {
+
+    if (
+        !currentUser ||
+        (
+            currentUser.role !== "manager" &&
+            currentUser.role !== "admin"
+        )
+    ) {
+        return;
+    }
+
+    const table =
+        document.getElementById(
+            "reconcileHistoryTable"
+        );
+
+    try {
+
+        const history =
+            await apiFetch(
+                "/reconcile/history"
+            );
+
+        table.innerHTML = "";
+
+        if (
+            !Array.isArray(history) ||
+            history.length === 0
+        ) {
+
+            table.innerHTML = `
+                <tr>
+                    <td
+                        colspan="6"
+                        class="empty-message"
+                    >
+                        No inventory adjustments have been recorded.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        history.forEach(item => {
+
+            const row =
+                document.createElement("tr");
+
+            const difference =
+                Number(
+                    item.quantity_change
+                ) || 0;
+
+            row.innerHTML = `
+                <td>
+                    ${formatTimestamp(
+                        item.created_at
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        item.ingredient_name
+                    )}
+                </td>
+
+                <td class="${
+                    difference > 0
+                        ? "reconcile-difference-positive"
+                        : difference < 0
+                            ? "reconcile-difference-negative"
+                            : ""
+                }">
+                    ${
+                        difference > 0
+                            ? "+"
+                            : ""
+                    }${formatQuantity(
+                        difference
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        item.employee_name ||
+                        "Store"
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        item.manager_name ||
+                        "Unknown"
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        item.reason
+                    )}
+                </td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        table.innerHTML = `
+            <tr>
+                <td
+                    colspan="6"
+                    class="empty-message error"
+                >
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </td>
+            </tr>
+        `;
 
     }
 
@@ -735,25 +4644,38 @@ async function loadInventory() {
 
 async function loadPayouts() {
 
-    if (!currentUser || currentUser.role !== "manager") {
+    if (
+        !currentUser ||
+        (
+            currentUser.role !== "manager" &&
+            currentUser.role !== "admin"
+        )
+    ) {
         return;
     }
 
     try {
 
-        const payouts = await apiFetch("/payouts");
+        const payouts =
+            await apiFetch(
+                "/payouts"
+            );
 
         const table =
-            document.getElementById("payoutsTable");
+            document.getElementById(
+                "payoutsTable"
+            );
 
         table.innerHTML = "";
-
 
         if (payouts.length === 0) {
 
             table.innerHTML = `
                 <tr>
-                    <td colspan="4">
+                    <td
+                        colspan="4"
+                        class="empty-message"
+                    >
                         No outstanding payouts.
                     </td>
                 </tr>
@@ -762,31 +4684,28 @@ async function loadPayouts() {
             return;
         }
 
-
         payouts.forEach(payout => {
 
-            const row = document.createElement("tr");
+            const row =
+                document.createElement("tr");
 
             const amount =
-                Number(payout.amount_owed);
+                Number(
+                    payout.amount_owed
+                );
 
-            // Employee name
             const employeeCell =
                 document.createElement("td");
 
             employeeCell.textContent =
                 payout.employee_name;
 
-
-            // Amount owed
             const owedCell =
                 document.createElement("td");
 
             owedCell.textContent =
-                `$${amount.toFixed(2)}`;
+                formatCost(amount);
 
-
-            // Payment input
             const inputCell =
                 document.createElement("td");
 
@@ -794,41 +4713,70 @@ async function loadPayouts() {
                 document.createElement("input");
 
             input.type = "number";
-            input.className = "payment-input";
+            input.className =
+                "payment-input";
+
             input.min = "0.01";
-            input.max = amount.toFixed(2);
+
+            input.max =
+                amount.toFixed(2);
+
             input.step = "0.01";
-            input.placeholder = "Amount";
-            input.id = `pay-amount-${payout.employee_id}`;
 
-            inputCell.appendChild(input);
+            input.placeholder =
+                "Amount";
 
+            input.id =
+                `pay-amount-${payout.employee_id}`;
 
-            // Pay button
+            inputCell.appendChild(
+                input
+            );
+
             const actionCell =
                 document.createElement("td");
 
             const button =
                 document.createElement("button");
 
-            button.className = "pay-btn";
-            button.textContent = "Pay";
+            button.className =
+                "pay-btn";
 
-            button.addEventListener("click", () => {
-                payEmployee(
-                    payout.employee_id,
-                    payout.employee_name,
-                    amount
-                );
-            });
+            button.textContent =
+                "Pay";
 
-            actionCell.appendChild(button);
+            button.addEventListener(
+                "click",
+                () => {
 
+                    payEmployee(
+                        payout.employee_id,
+                        payout.employee_name,
+                        amount
+                    );
 
-            row.appendChild(employeeCell);
-            row.appendChild(owedCell);
-            row.appendChild(inputCell);
-            row.appendChild(actionCell);
+                }
+            );
+
+            actionCell.appendChild(
+                button
+            );
+
+            row.appendChild(
+                employeeCell
+            );
+
+            row.appendChild(
+                owedCell
+            );
+
+            row.appendChild(
+                inputCell
+            );
+
+            row.appendChild(
+                actionCell
+            );
 
             table.appendChild(row);
 
@@ -854,80 +4802,97 @@ async function payEmployee(
 ) {
 
     const message =
-        document.getElementById("payoutMessage");
+        document.getElementById(
+            "payoutMessage"
+        );
 
     const input =
-        document.getElementById(`pay-amount-${employeeId}`);
+        document.getElementById(
+            `pay-amount-${employeeId}`
+        );
 
     const amount =
         Number(input.value);
 
+    if (
+        !input.value ||
+        !Number.isFinite(amount)
+    ) {
 
-    if (!input.value || !Number.isFinite(amount)) {
+        message.className =
+            "message error";
 
-        message.className = "message error";
         message.textContent =
             "Enter an amount to pay.";
 
         return;
     }
 
-
     if (amount <= 0) {
 
-        message.className = "message error";
+        message.className =
+            "message error";
+
         message.textContent =
             "Payment amount must be greater than zero.";
 
         return;
     }
 
-
     if (amount > amountOwed) {
 
-        message.className = "message error";
+        message.className =
+            "message error";
+
         message.textContent =
-            `Payment cannot exceed the outstanding balance of $${amountOwed.toFixed(2)}.`;
+            `Payment cannot exceed the outstanding ` +
+            `balance of ${formatCost(amountOwed)}.`;
 
         return;
     }
 
-
-    const confirmed = confirm(
-        `Pay ${employeeName} $${amount.toFixed(2)}?`
-    );
+    const confirmed =
+        confirm(
+            `Pay ${employeeName} ${formatCost(amount)}?`
+        );
 
     if (!confirmed) {
         return;
     }
 
-
     try {
 
-        const result = await apiFetch(
-            `/payouts/${employeeId}/pay?amount=${amount.toFixed(2)}`,
-            {
-                method: "POST"
-            }
-        );
+        const result =
+            await apiFetch(
+                `/payouts/${employeeId}/pay` +
+                `?amount=${amount.toFixed(2)}`,
+                {
+                    method: "POST"
+                }
+            );
 
-
-        message.className = "message success";
+        message.className =
+            "message success";
 
         message.textContent =
-            `${employeeName} was paid $${Number(
+            `${employeeName} was paid ` +
+            `${formatCost(
                 result.amount_paid
-            ).toFixed(2)}. Remaining balance: $${Number(
+            )}. ` +
+            `Remaining balance: ` +
+            `${formatCost(
                 result.remaining_balance
-            ).toFixed(2)}.`;
-
+            )}.`;
 
         await loadPayouts();
 
     } catch (error) {
 
-        message.className = "message error";
-        message.textContent = error.message;
+        message.className =
+            "message error";
+
+        message.textContent =
+            error.message;
 
     }
 
@@ -940,53 +4905,453 @@ async function payEmployee(
 
 document
     .getElementById("ingredientForm")
-    .addEventListener("submit", async event => {
+    .addEventListener(
+        "submit",
+        async event => {
 
-        event.preventDefault();
+            event.preventDefault();
 
-        const name =
-            document.getElementById("ingredientName").value;
+            const name =
+                document.getElementById(
+                    "ingredientName"
+                ).value;
 
-        const buyCost =
-            document.getElementById("buyCost").value;
+            const buyCost =
+                document.getElementById(
+                    "buyCost"
+                ).value;
 
-        const sellCost =
-            document.getElementById("sellCost").value;
+            const sellCost =
+                document.getElementById(
+                    "sellCost"
+                ).value;
 
-        const message =
-            document.getElementById("ingredientMessage");
+            const desiredQuantity =
+                document.getElementById(
+                    "desiredQuantity"
+                ).value;
 
+            const message =
+                document.getElementById(
+                    "ingredientMessage"
+                );
 
-        try {
+            try {
 
-            await apiFetch(
-                `/ingredients?name=${encodeURIComponent(name)}&buy_cost=${buyCost}&sell_cost=${sellCost}`,
-                {
-                    method: "POST"
-                }
-            );
+                await apiFetch(
+                    `/ingredients` +
+                    `?name=${encodeURIComponent(
+                        name
+                    )}` +
+                    `&buy_cost=${buyCost}` +
+                    `&sell_cost=${sellCost}` +
+                    `&desired_quantity=${desiredQuantity}`,
+                    {
+                        method: "POST"
+                    }
+                );
 
+                message.className =
+                    "message success";
 
-            message.className = "message success";
-            message.textContent =
-                "Ingredient added successfully.";
+                message.textContent =
+                    "Ingredient added successfully.";
 
+                document.getElementById(
+                    "ingredientName"
+                ).value = "";
 
-            document.getElementById("ingredientName").value = "";
-            document.getElementById("buyCost").value = "";
-            document.getElementById("sellCost").value = "";
+                document.getElementById(
+                    "buyCost"
+                ).value = "";
 
+                document.getElementById(
+                    "sellCost"
+                ).value = "";
 
-            await loadIngredients();
+                document.getElementById(
+                    "desiredQuantity"
+                ).value = "";
 
-        } catch (error) {
+                await loadIngredients();
+                await loadInventory();
 
-            message.className = "message error";
-            message.textContent = error.message;
+            } catch (error) {
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    error.message;
+
+            }
 
         }
+    );
 
-    });
+
+// ---------------------------------------------------------
+// ADMIN EMPLOYEE MANAGEMENT
+// ---------------------------------------------------------
+
+async function loadEmployees() {
+
+    if (
+        !currentUser ||
+        currentUser.role !== "admin"
+    ) {
+        return;
+    }
+
+    const table =
+        document.getElementById(
+            "employeesTable"
+        );
+
+    try {
+
+        const employees =
+            await apiFetch(
+                "/admin/employees"
+            );
+
+        table.innerHTML = "";
+
+        if (
+            !Array.isArray(employees) ||
+            employees.length === 0
+        ) {
+
+            table.innerHTML = `
+                <tr>
+                    <td
+                        colspan="4"
+                        class="empty-message"
+                    >
+                        No employees found.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        employees.forEach(employee => {
+
+            const row =
+                document.createElement("tr");
+
+            const isCurrentUser =
+                Number(employee.id) ===
+                Number(currentUser.id);
+
+            row.innerHTML = `
+                <td>
+                    ${escapeHtml(
+                        employee.username
+                    )}
+                </td>
+
+                <td>
+                    <select
+                        id="rank-${employee.id}"
+                        class="admin-rank-select"
+                        ${isCurrentUser ? "disabled" : ""}
+                    >
+                        <option
+                            value="employee"
+                            ${employee.role === "employee" ? "selected" : ""}
+                        >
+                            Employee
+                        </option>
+
+                        <option
+                            value="manager"
+                            ${employee.role === "manager" ? "selected" : ""}
+                        >
+                            Manager
+                        </option>
+
+                        <option
+                            value="admin"
+                            ${employee.role === "admin" ? "selected" : ""}
+                        >
+                            Admin
+                        </option>
+                    </select>
+                </td>
+
+                <td>
+                    <input
+                        type="password"
+                        id="password-${employee.id}"
+                        class="admin-password-input"
+                        placeholder="Leave blank"
+                    >
+                </td>
+
+                <td>
+                    <button
+                        class="admin-save-btn"
+                        onclick="saveEmployee(${employee.id})"
+                    >
+                        Save
+                    </button>
+                </td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        table.innerHTML = `
+            <tr>
+                <td
+                    colspan="4"
+                    class="empty-message error"
+                >
+                    ${escapeHtml(error.message)}
+                </td>
+            </tr>
+        `;
+
+    }
+
+}
+
+
+async function saveEmployee(employeeId) {
+
+    const message =
+        document.getElementById(
+            "adminMessage"
+        );
+
+    const rankSelect =
+        document.getElementById(
+            `rank-${employeeId}`
+        );
+
+    const passwordInput =
+        document.getElementById(
+            `password-${employeeId}`
+        );
+
+    if (!rankSelect || !passwordInput) {
+        return;
+    }
+
+    const rank =
+        rankSelect.value;
+
+    const password =
+        passwordInput.value;
+
+    if (
+        currentUser &&
+        Number(employeeId) ===
+        Number(currentUser.id)
+    ) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "You cannot change your own rank.";
+
+        return;
+    }
+
+    if (
+        password.length > 0 &&
+        password.length < 4
+    ) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Password must be at least 4 characters.";
+
+        return;
+    }
+
+    if (
+        rank !== "employee" &&
+        rank !== "manager" &&
+        rank !== "admin"
+    ) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Invalid employee rank.";
+
+        return;
+    }
+
+    const employee =
+        await getEmployeeFromTable(
+            employeeId
+        );
+
+    const employeeName =
+        employee
+            ? employee.username
+            : "employee";
+
+    let confirmationMessage =
+        `Save changes for ${employeeName}?`;
+
+    if (password) {
+
+        confirmationMessage +=
+            `\n\nThis will change their password.`;
+
+    }
+
+    const confirmed =
+        confirm(
+            confirmationMessage
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+
+        const body = {
+            role: rank
+        };
+
+        if (password) {
+            body.password = password;
+        }
+
+        await apiFetch(
+            `/admin/employees/${employeeId}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(body)
+            }
+        );
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            `${employeeName} updated successfully.`;
+
+        passwordInput.value = "";
+
+        await loadEmployees();
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            error.message;
+
+    }
+
+}
+
+
+async function getEmployeeFromTable(employeeId) {
+
+    try {
+
+        const employees =
+            await apiFetch(
+                "/admin/employees"
+            );
+
+        return employees.find(
+            employee =>
+                Number(employee.id) ===
+                Number(employeeId)
+        );
+
+    } catch {
+
+        return null;
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// FORMAT TIMESTAMP
+// ---------------------------------------------------------
+
+function formatTimestamp(timestamp) {
+
+    if (!timestamp) {
+        return "Unknown";
+    }
+
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Unknown";
+    }
+
+    return date.toLocaleString(
+        "en-US",
+        {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+        }
+    );
+
+}
+
+
+// ---------------------------------------------------------
+// JAVASCRIPT ESCAPE
+// ---------------------------------------------------------
+
+function escapeJs(value) {
+
+    return String(value ?? "")
+        .replace(/\\/g, "\\\\")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\r/g, "\\r")
+        .replace(/\n/g, "\\n");
+
+}
+
+
+// ---------------------------------------------------------
+// HTML ESCAPE
+// ---------------------------------------------------------
+
+function escapeHtml(value) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        value ?? "";
+
+    return div.innerHTML;
+}
 
 
 // ---------------------------------------------------------
@@ -997,7 +5362,8 @@ function logout() {
 
     localStorage.removeItem("token");
 
-    window.location.href = "login.html";
+    window.location.href =
+        "login.html";
 
 }
 
