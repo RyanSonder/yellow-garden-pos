@@ -39,7 +39,7 @@ def get_current_user(
 
     employee = db.get(Employee, employee_id)
 
-    if not employee:
+    if not employee or not employee.is_active:
         raise HTTPException(
             status_code=401,
             detail="User not found",

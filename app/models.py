@@ -41,6 +41,12 @@ class Employee(Base):
         default="employee",
     )
 
+    is_active: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         server_default=func.now(),

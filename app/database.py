@@ -42,6 +42,20 @@ def ensure_schema_compatibility() -> None:
                 )
             )
 
+        employee_columns = {
+            column["name"]
+            for column in inspector.get_columns("employees")
+        }
+
+        if "is_active" not in employee_columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE employees "
+                    "ADD COLUMN IF NOT EXISTS is_active BOOLEAN "
+                    "NOT NULL DEFAULT true"
+                )
+            )
+
         connection.execute(
             text(
                 "ALTER TABLE products "

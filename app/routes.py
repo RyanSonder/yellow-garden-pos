@@ -229,20 +229,23 @@ def create_employee(
 
 @router.get("/admin/employees")
 def get_all_employees(
+    include_archived: bool = False,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_admin),
 ):
-    employees = (
-        db.query(Employee)
-        .order_by(Employee.username)
-        .all()
-    )
+    query = db.query(Employee)
+
+    if not include_archived:
+        query = query.filter(Employee.is_active.is_(True))
+
+    employees = query.order_by(Employee.username).all()
 
     return [
         {
             "id": employee.id,
             "username": employee.username,
             "role": employee.role,
+            "is_active": employee.is_active,
             "created_at": employee.created_at,
         }
         for employee in employees
@@ -367,7 +370,7 @@ def login(
     except UnknownHashError:
         valid_password = False
 
-    if not valid_password:
+    if not valid_password or not employee.is_active:
         raise HTTPException(
             status_code=401,
             detail="Invalid username or password",

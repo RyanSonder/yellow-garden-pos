@@ -637,6 +637,32 @@
        ADMIN
        --------------------------------------------------------- */
 
+    .admin-add-employee {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin: 15px 0 20px 0;
+        padding: 15px;
+        background: #f8f8f8;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    .admin-add-employee h3 {
+        width: 100%;
+        margin: 0 0 5px 0;
+    }
+
+    .admin-add-employee input,
+    .admin-add-employee select {
+        margin: 0;
+    }
+
+    .admin-add-employee input {
+        width: 160px;
+    }
+
     .admin-password-input {
         width: 160px;
         margin: 0;
@@ -1601,8 +1627,45 @@
     <h2>Employee Management</h2>
 
     <p>
-        Admins can change employee ranks and passwords.
+    Admins can create employees and change employee ranks and passwords.
     </p>
+
+    <div class="admin-add-employee">
+        <h3>Add Employee</h3>
+
+        <input
+            type="text"
+            id="newEmployeeUsername"
+            placeholder="Username"
+            autocomplete="off"
+        >
+
+        <input
+            type="password"
+            id="newEmployeePassword"
+            placeholder="Password"
+            autocomplete="new-password"
+        >
+
+        <select id="newEmployeeRank">
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+            <option
+                value="senior_admin"
+                id="newEmployeeSeniorAdminOption"
+            >
+                Senior Admin
+            </option>
+        </select>
+
+        <button
+            class="admin-save-btn"
+            onclick="addEmployee()"
+        >
+            Add Employee
+        </button>
+    </div>
 
     <button onclick="loadEmployees()">
         Refresh Employees
@@ -6144,156 +6207,140 @@ document
 // ADMIN EMPLOYEE MANAGEMENT
 // ---------------------------------------------------------
 
-async function loadEmployees() {
+async function addEmployee() {
+    const message =
+        document.getElementById("adminMessage");
 
-    if (
-        !currentUser ||
-        currentUser.role !== "admin" &&
-        currentUser.role !== "senior_admin"
-    ) {
+    const username =
+        document.getElementById(
+            "newEmployeeUsername"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "newEmployeePassword"
+        ).value;
+
+    const rank =
+        document.getElementById(
+            "newEmployeeRank"
+        ).value;
+
+    if (!username) {
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Username is required.";
+
         return;
     }
 
-    const table =
-        document.getElementById(
-            "employeesTable"
-        );
+    if (!password) {
+        message.className =
+            "message error";
 
-    try {
+        message.textContent =
+            "Password is required.";
 
-        const employees =
-            await apiFetch(
-                "/admin/employees"
-            );
-
-        table.innerHTML = "";
-
-        if (
-            !Array.isArray(employees) ||
-            employees.length === 0
-        ) {
-
-            table.innerHTML = `
-                <tr>
-                    <td
-                        colspan="4"
-                        class="empty-message"
-                    >
-                        No employees found.
-                    </td>
-                </tr>
-            `;
-
-            return;
-        }
-
-        employees.forEach(employee => {
-
-            const row =
-                document.createElement("tr");
-
-            const isCurrentUser =
-                Number(employee.id) ===
-                Number(currentUser.id);
-
-            const canEditRole =
-                currentUser.role === "senior_admin" ||
-                employee.role !== "senior_admin";
-
-            row.innerHTML = `
-                <td>
-                    ${escapeHtml(
-                        employee.username
-                    )}
-                </td>
-
-                <td>
-                    <select
-                        id="rank-${employee.id}"
-                        class="admin-rank-select"
-                        ${
-                            isCurrentUser || !canEditRole
-                                ? "disabled"
-                                : ""
-                        }
-                    >
-                        <option
-                            value="employee"
-                            ${employee.role === "employee" ? "selected" : ""}
-                        >
-                            Employee
-                        </option>
-
-                        <option
-                            value="manager"
-                            ${employee.role === "manager" ? "selected" : ""}
-                        >
-                            Manager
-                        </option>
-
-                        <option
-                            value="admin"
-                            ${employee.role === "admin" ? "selected" : ""}
-                        >
-                            Admin
-                        </option>
-
-                        <option
-                            value="senior_admin"
-                            ${
-                                currentUser.role !== "senior_admin"
-                                    ? "disabled"
-                                    : ""
-                            }
-                            ${employee.role === "senior_admin" ? "selected" : ""}
-                        >
-                            Senior Admin
-                        </option>
-                    </select>
-                </td>
-
-                <td>
-                    <input
-                        type="password"
-                        id="password-${employee.id}"
-                        class="admin-password-input"
-                        placeholder="Leave blank"
-                    >
-                </td>
-
-                <td>
-                    <button
-                        class="admin-save-btn"
-                        onclick="saveEmployee(${employee.id})"
-                    >
-                        Save
-                    </button>
-                </td>
-            `;
-
-            table.appendChild(row);
-
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        table.innerHTML = `
-            <tr>
-                <td
-                    colspan="4"
-                    class="empty-message error"
-                >
-                    ${escapeHtml(error.message)}
-                </td>
-            </tr>
-        `;
-
+        return;
     }
 
-}
+    if (password.length < 4) {
+        message.className =
+            "message error";
 
+        message.textContent =
+            "Password must be at least 4 characters.";
+
+        return;
+    }
+
+    if (
+        rank !== "employee" &&
+        rank !== "manager" &&
+        rank !== "admin" &&
+        rank !== "senior_admin"
+    ) {
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Invalid employee rank.";
+
+        return;
+    }
+
+    if (
+        rank === "senior_admin" &&
+        (!currentUser ||
+            currentUser.role !== "senior_admin")
+    ) {
+        message.className =
+            "message error";
+
+        message.textContent =
+            "Only a Senior Admin can create a Senior Admin.";
+
+        return;
+    }
+
+    const confirmed =
+        confirm(
+            `Create employee "${username}" as ${rank.replace(
+                "_",
+                " "
+            )}?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        await apiFetch(
+            "/employees",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    username,
+                    password,
+                    role: rank
+                })
+            }
+        );
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            `${username} created successfully.`;
+
+        document.getElementById(
+            "newEmployeeUsername"
+        ).value = "";
+
+        document.getElementById(
+            "newEmployeePassword"
+        ).value = "";
+
+        document.getElementById(
+            "newEmployeeRank"
+        ).value = "employee";
+
+        await loadEmployees();
+
+    } catch (error) {
+        message.className =
+            "message error";
+
+        message.textContent =
+            error.message;
+    }
+}
 
 async function saveEmployee(employeeId) {
 
