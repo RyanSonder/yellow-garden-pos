@@ -4,12 +4,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Login</title>
+    <title>Yellow Garden Login</title>
 
 <style>
+    :root {
+        --ink: #3e3023;
+        --gold: #c8942f;
+        --gold-deep: #9a6c17;
+        --cream: rgba(255, 252, 242, 0.92);
+    }
+
+    html {
+        background-color: #f4f4f4;
+        background-image: url("background.png");
+        background-position: center top;
+        background-size: cover;
+        overscroll-behavior-y: none;
+    }
+
     body {
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
+        color: var(--ink);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        background-color: #f4f4f4;
+        background-image: url("background.png");
+        background-position: center top;
+        background-size: cover;
+        background-attachment: fixed;
+        overscroll-behavior-y: none;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -18,37 +39,56 @@
     }
 
     .login-box {
-        background: white;
+        background: rgba(255, 252, 242, 0.9);
         padding: 30px;
-        width: 300px;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        width: min(300px, calc(100% - 48px));
+        border: 1px solid rgba(255, 255, 255, 0.65);
+        border-radius: 8px;
+        box-shadow: 0 12px 30px rgba(62, 48, 35, 0.16);
     }
 
     h1 {
+        color: var(--gold-deep);
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: normal;
         text-align: center;
         margin-top: 0;
     }
 
     input {
         box-sizing: border-box;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(104, 82, 59, 0.3);
+        border-radius: 5px;
+        color: var(--ink);
+        font: inherit;
         width: 100%;
         padding: 10px;
         margin-bottom: 12px;
     }
 
+    input:focus {
+        border-color: var(--gold-deep);
+        box-shadow: 0 0 0 3px rgba(200, 148, 47, 0.2);
+        outline: none;
+    }
+
     button {
         width: 100%;
         padding: 10px;
-        background: #333;
+        background: var(--ink);
         color: white;
         border: none;
         border-radius: 4px;
+        font: inherit;
+        font-weight: bold;
         cursor: pointer;
+        transition: background-color 160ms ease, transform 160ms ease;
     }
 
     button:hover {
-        background: #555;
+        background: var(--gold-deep);
+        transform: translateY(-1px);
     }
 
     #message {
@@ -64,7 +104,7 @@
 
 <div class="login-box">
 
-<h1>POS Login</h1>
+<h1>Yellow Garden Login</h1>
 
 <form id="loginForm">
 

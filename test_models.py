@@ -1,11 +1,11 @@
 from sqlalchemy import select
 from app.database import SessionLocal
-from app.models import Employee, Ingredient, Deposit, Sale, PayoutAllocation
+from app.models import Employee, Product, Deposit, Sale, PayoutAllocation
 
 with SessionLocal() as db:
     tables = [
         Employee,
-        Ingredient,
+        Product,
         Deposit,
         Sale,
         PayoutAllocation,

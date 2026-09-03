@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from app.database import SessionLocal
-from app.models import Employee, Ingredient, Deposit, PayoutAllocation
+from app.models import Employee, Product, Deposit, PayoutAllocation
 from app.fifo import process_sale
 
 
@@ -14,9 +14,10 @@ with SessionLocal() as db:
     db.add_all([bob, alice])
     db.flush()
 
-    # Create ingredient
-    tomatoes = Ingredient(
+    # Create product
+    tomatoes = Product(
         name="Tomatoes",
+        type="other",
         buy_cost=Decimal("2.00"),
         sell_cost=Decimal("3.50")
     )
@@ -27,14 +28,14 @@ with SessionLocal() as db:
     # Deposits
     db.add(Deposit(
         employee_id=bob.id,
-        ingredient_id=tomatoes.id,
+        product_id=tomatoes.id,
         quantity=Decimal("10"),
         quantity_remaining=Decimal("10")
     ))
 
     db.add(Deposit(
         employee_id=alice.id,
-        ingredient_id=tomatoes.id,
+        product_id=tomatoes.id,
         quantity=Decimal("20"),
         quantity_remaining=Decimal("20")
     ))

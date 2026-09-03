@@ -3,26 +3,26 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Deposit, Sale, PayoutAllocation, Ingredient
+from .models import Deposit, Sale, PayoutAllocation, Product
 
 
 def process_sale(
     db: Session,
-    ingredient_id: int,
+    product_id: int,
     quantity: Decimal,
 ):
     if quantity <= 0:
         raise ValueError("Quantity must be greater than zero")
 
-    ingredient = db.get(Ingredient, ingredient_id)
+    product = db.get(Product, product_id)
 
-    if not ingredient:
-        raise ValueError("Ingredient not found")
+    if not product:
+        raise ValueError("Product not found")
 
     deposits = db.scalars(
         select(Deposit)
         .where(
-            Deposit.ingredient_id == ingredient_id,
+            Deposit.product_id == product_id,
             Deposit.quantity_remaining > 0,
         )
         .order_by(
@@ -45,24 +45,34 @@ def process_sale(
     ]
 
     employee_available = sum(
-        (deposit.quantity_remaining for deposit in employee_deposits),
+        (
+            deposit.quantity_remaining
+            for deposit in employee_deposits
+        ),
         Decimal("0.000"),
     )
 
     store_available = sum(
-        (deposit.quantity_remaining for deposit in store_deposits),
+        (
+            deposit.quantity_remaining
+            for deposit in store_deposits
+        ),
         Decimal("0.000"),
     )
 
-    total_available = employee_available + store_available
+    total_available = (
+        employee_available
+        + store_available
+    )
 
     if total_available < quantity:
         raise ValueError("Not enough inventory")
 
     sale = Sale(
-        ingredient_id=ingredient_id,
+        product_id=product_id,
         quantity=quantity,
     )
+
     db.add(sale)
     db.flush()
 
@@ -78,7 +88,7 @@ def process_sale(
             remaining,
         )
 
-        payout = taken * ingredient.buy_cost
+        payout = taken * product.buy_cost
 
         db.add(
             PayoutAllocation(
@@ -93,8 +103,7 @@ def process_sale(
         deposit.quantity_remaining -= taken
         remaining -= taken
 
-    # If the employee-owned inventory wasn't enough,
-    # continue the sale using Store inventory.
+    # Store inventory is used after employee inventory.
     for deposit in store_deposits:
         if remaining <= 0:
             break

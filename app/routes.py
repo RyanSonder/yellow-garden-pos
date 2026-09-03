@@ -5,16 +5,16 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from pwdlib import PasswordHash
-from sqlalchemy import func, select
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .auth import get_current_user, require_manager
+from .auth import get_current_user
 from .database import SessionLocal
 from .fifo import process_sale
 from .models import (
     Deposit,
     Employee,
-    Ingredient,
+    Product,
     PayoutAllocation,
     PayoutPayment,
     Sale,
@@ -35,9 +35,11 @@ ALGORITHM = "HS256"
 # REQUEST MODELS
 # ---------------------------------------------------------
 
-class IngredientBulkUpdate(BaseModel):
+
+class ProductBulkUpdate(BaseModel):
     id: int
     name: str
+    type: str
     buy_cost: Decimal
     sell_cost: Decimal
     desired_quantity: Decimal
@@ -54,7 +56,7 @@ class ReconcileAllocation(BaseModel):
 
 
 class InventoryReconcile(BaseModel):
-    ingredient_id: int
+    product_id: int
     physical_quantity: Decimal
     reason: str
     employee_allocations: list[ReconcileAllocation] = Field(
@@ -66,8 +68,10 @@ class InventoryReconcile(BaseModel):
 # DATABASE
 # ---------------------------------------------------------
 
+
 def get_db():
     db = SessionLocal()
+
     try:
         yield db
     finally:
@@ -78,10 +82,11 @@ def get_db():
 # PERMISSIONS
 # ---------------------------------------------------------
 
+
 def require_admin(
     current_user: Employee = Depends(get_current_user),
 ):
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "senior_admin"):
         raise HTTPException(
             status_code=403,
             detail="Admin access required",
@@ -93,7 +98,11 @@ def require_admin(
 def require_manager_or_admin(
     current_user: Employee = Depends(get_current_user),
 ):
-    if current_user.role not in ("manager", "admin"):
+    if current_user.role not in (
+        "manager",
+        "admin",
+        "senior_admin",
+    ):
         raise HTTPException(
             status_code=403,
             detail="Manager or admin access required",
@@ -106,6 +115,7 @@ def require_manager_or_admin(
 # EMPLOYEES
 # ---------------------------------------------------------
 
+
 @router.post("/employees")
 def create_employee(
     username: str,
@@ -114,12 +124,26 @@ def create_employee(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
-    allowed_roles = {"employee", "manager", "admin"}
+    allowed_roles = {
+        "employee",
+        "manager",
+        "admin",
+        "senior_admin",
+    }
 
     if role not in allowed_roles:
         raise HTTPException(
             status_code=400,
             detail="Invalid employee rank",
+        )
+
+    if (
+        role == "senior_admin" and
+        current_user.role != "senior_admin"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only a senior admin can assign the senior admin role",
         )
 
     if not username.strip():
@@ -144,6 +168,7 @@ def create_employee(
         db.add(employee)
         db.commit()
         db.refresh(employee)
+
     except Exception:
         db.rollback()
         raise
@@ -158,6 +183,7 @@ def create_employee(
 # ---------------------------------------------------------
 # ADMIN EMPLOYEE MANAGEMENT
 # ---------------------------------------------------------
+
 
 @router.get("/admin/employees")
 def get_all_employees(
@@ -197,7 +223,10 @@ def update_employee_as_admin(
         )
 
     if employee.id == current_user.id:
-        if update.role is not None and update.role != "admin":
+        if update.role is not None and update.role not in (
+            "admin",
+            "senior_admin",
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="You cannot change your own rank",
@@ -208,12 +237,31 @@ def update_employee_as_admin(
             "employee",
             "manager",
             "admin",
+            "senior_admin",
         }
 
         if update.role not in allowed_roles:
             raise HTTPException(
                 status_code=400,
                 detail="Invalid employee rank",
+            )
+
+        if (
+            current_user.role != "senior_admin" and
+            (
+                (
+                    employee.role == "senior_admin" and
+                    update.role != employee.role
+                ) or
+                (
+                    update.role == "senior_admin" and
+                    employee.role != update.role
+                )
+            )
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Only a senior admin can change the senior admin role",
             )
 
         employee.role = update.role
@@ -232,6 +280,7 @@ def update_employee_as_admin(
     try:
         db.commit()
         db.refresh(employee)
+
     except Exception:
         db.rollback()
         raise
@@ -246,6 +295,7 @@ def update_employee_as_admin(
 # ---------------------------------------------------------
 # LOGIN
 # ---------------------------------------------------------
+
 
 @router.post("/login")
 def login(
@@ -272,7 +322,10 @@ def login(
         {
             "sub": str(employee.id),
             "role": employee.role,
-            "exp": datetime.now(timezone.utc) + timedelta(hours=8),
+            "exp": (
+                datetime.now(timezone.utc)
+                + timedelta(hours=8)
+            ),
         },
         SECRET_KEY,
         algorithm=ALGORITHM,
@@ -288,6 +341,7 @@ def login(
 # CURRENT USER
 # ---------------------------------------------------------
 
+
 @router.get("/me")
 def get_me(
     current_user: Employee = Depends(get_current_user),
@@ -300,18 +354,35 @@ def get_me(
 
 
 # ---------------------------------------------------------
-# INGREDIENTS
+# PRODUCTS
 # ---------------------------------------------------------
 
-@router.post("/ingredients")
-def create_ingredient(
+
+@router.post("/products")
+def create_product(
     name: str,
+    type: str,
     buy_cost: Decimal,
     sell_cost: Decimal,
     desired_quantity: Decimal = Decimal("0.000"),
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
+    name = name.strip()
+    type = type.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Product name cannot be empty",
+        )
+
+    if not type:
+        raise HTTPException(
+            status_code=400,
+            detail="Product type cannot be empty",
+        )
+
     if buy_cost < 0:
         raise HTTPException(
             status_code=400,
@@ -330,87 +401,131 @@ def create_ingredient(
             detail="Desired quantity cannot be negative",
         )
 
-    ingredient = Ingredient(
+    existing_product = (
+        db.query(Product)
+        .filter(
+            Product.name == name,
+            Product.type == type,
+        )
+        .first()
+    )
+
+    if existing_product:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "A product with this name and type "
+                "already exists"
+            ),
+        )
+
+    product = Product(
         name=name,
+        type=type,
         buy_cost=buy_cost,
         sell_cost=sell_cost,
         desired_quantity=desired_quantity,
     )
 
     try:
-        db.add(ingredient)
+        db.add(product)
         db.commit()
-        db.refresh(ingredient)
+        db.refresh(product)
+
     except Exception:
         db.rollback()
         raise
 
-    return ingredient
+    return product
 
 
-@router.get("/ingredients")
-def get_ingredients(
+@router.get("/products")
+def get_products(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
 ):
     return (
-        db.query(Ingredient)
-        .order_by(Ingredient.name)
+        db.query(Product)
+        .order_by(
+            Product.name,
+            Product.type,
+        )
         .all()
     )
 
 
-# IMPORTANT:
-# This route must come BEFORE /ingredients/{ingredient_id}
-# so "bulk-update" is not interpreted as an ingredient ID.
-@router.put("/ingredients/bulk-update")
-def bulk_update_ingredients(
-    updates: list[IngredientBulkUpdate],
+@router.put("/products/bulk-update")
+def bulk_update_products(
+    updates: list[ProductBulkUpdate],
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
     if not updates:
         return {
-            "message": "No ingredients to update",
+            "message": "No products to update",
             "updated": 0,
         }
 
-    ingredient_ids = [update.id for update in updates]
+    product_ids = [
+        update.id
+        for update in updates
+    ]
 
-    if len(ingredient_ids) != len(set(ingredient_ids)):
+    if len(product_ids) != len(set(product_ids)):
         raise HTTPException(
             status_code=400,
-            detail="Duplicate ingredient IDs were submitted",
+            detail="Duplicate product IDs were submitted",
         )
 
-    ingredients = (
-        db.query(Ingredient)
-        .filter(Ingredient.id.in_(ingredient_ids))
+    products = (
+        db.query(Product)
+        .filter(Product.id.in_(product_ids))
         .all()
     )
 
-    ingredients_by_id = {
-        ingredient.id: ingredient
-        for ingredient in ingredients
+    products_by_id = {
+        product.id: product
+        for product in products
     }
 
-    if len(ingredients_by_id) != len(ingredient_ids):
+    if len(products_by_id) != len(product_ids):
         raise HTTPException(
             status_code=404,
-            detail="One or more ingredients were not found",
+            detail="One or more products were not found",
         )
 
     for update in updates:
+        name = update.name.strip()
+        type = update.type.strip()
+
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail="Product name cannot be empty",
+            )
+
+        if not type:
+            raise HTTPException(
+                status_code=400,
+                detail="Product type cannot be empty",
+            )
+
         if update.buy_cost < 0:
             raise HTTPException(
                 status_code=400,
-                detail=f"Buy cost cannot be negative for {update.name}",
+                detail=(
+                    f"Buy cost cannot be negative "
+                    f"for {name}"
+                ),
             )
 
         if update.sell_cost < 0:
             raise HTTPException(
                 status_code=400,
-                detail=f"Sell cost cannot be negative for {update.name}",
+                detail=(
+                    f"Sell cost cannot be negative "
+                    f"for {name}"
+                ),
             )
 
         if update.desired_quantity < 0:
@@ -418,50 +533,86 @@ def bulk_update_ingredients(
                 status_code=400,
                 detail=(
                     f"Desired quantity cannot be negative "
-                    f"for {update.name}"
+                    f"for {name}"
+                ),
+            )
+
+        duplicate = (
+            db.query(Product)
+            .filter(
+                Product.name == name,
+                Product.type == type,
+                Product.id != update.id,
+            )
+            .first()
+        )
+
+        if duplicate:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"A product named '{name}' with "
+                    f"type '{type}' already exists"
                 ),
             )
 
     try:
         for update in updates:
-            ingredient = ingredients_by_id[update.id]
+            product = products_by_id[update.id]
 
-            ingredient.name = update.name
-            ingredient.buy_cost = update.buy_cost
-            ingredient.sell_cost = update.sell_cost
-            ingredient.desired_quantity = update.desired_quantity
+            product.name = update.name.strip()
+            product.type = update.type.strip()
+            product.buy_cost = update.buy_cost
+            product.sell_cost = update.sell_cost
+            product.desired_quantity = update.desired_quantity
 
         db.commit()
 
-        for ingredient in ingredients:
-            db.refresh(ingredient)
+        for product in products:
+            db.refresh(product)
 
     except Exception:
         db.rollback()
         raise
 
     return {
-        "message": "Ingredients updated successfully",
+        "message": "Products updated successfully",
         "updated": len(updates),
     }
 
 
-@router.put("/ingredients/{ingredient_id}")
-def update_ingredient(
-    ingredient_id: int,
+@router.put("/products/{product_id}")
+def update_product(
+    product_id: int,
     name: str,
+    type: str,
     buy_cost: Decimal,
     sell_cost: Decimal,
     desired_quantity: Decimal = Decimal("0.000"),
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
-    ingredient = db.get(Ingredient, ingredient_id)
+    product = db.get(Product, product_id)
 
-    if not ingredient:
+    if not product:
         raise HTTPException(
             status_code=404,
-            detail="Ingredient not found",
+            detail="Product not found",
+        )
+
+    name = name.strip()
+    type = type.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Product name cannot be empty",
+        )
+
+    if not type:
+        raise HTTPException(
+            status_code=400,
+            detail="Product type cannot be empty",
         )
 
     if buy_cost < 0:
@@ -482,44 +633,98 @@ def update_ingredient(
             detail="Desired quantity cannot be negative",
         )
 
-    ingredient.name = name
-    ingredient.buy_cost = buy_cost
-    ingredient.sell_cost = sell_cost
-    ingredient.desired_quantity = desired_quantity
+    duplicate = (
+        db.query(Product)
+        .filter(
+            Product.name == name,
+            Product.type == type,
+            Product.id != product_id,
+        )
+        .first()
+    )
+
+    if duplicate:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "A product with this name and type "
+                "already exists"
+            ),
+        )
+
+    product.name = name
+    product.type = type
+    product.buy_cost = buy_cost
+    product.sell_cost = sell_cost
+    product.desired_quantity = desired_quantity
 
     try:
         db.commit()
-        db.refresh(ingredient)
+        db.refresh(product)
+
     except Exception:
         db.rollback()
         raise
 
-    return ingredient
+    return product
 
 
-@router.delete("/ingredients/{ingredient_id}")
-def delete_ingredient(
-    ingredient_id: int,
+@router.delete("/products/{product_id}")
+def delete_product(
+    product_id: int,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
-    ingredient = db.get(Ingredient, ingredient_id)
+    product = db.get(Product, product_id)
 
-    if not ingredient:
+    if not product:
         raise HTTPException(
             status_code=404,
-            detail="Ingredient not found",
+            detail="Product not found",
+        )
+
+    has_deposits = (
+        db.query(Deposit.id)
+        .filter(Deposit.product_id == product_id)
+        .first()
+        is not None
+    )
+
+    has_sales = (
+        db.query(Sale.id)
+        .filter(Sale.product_id == product_id)
+        .first()
+        is not None
+    )
+
+    has_adjustments = (
+        db.query(InventoryAdjustment.id)
+        .filter(
+            InventoryAdjustment.product_id == product_id
+        )
+        .first()
+        is not None
+    )
+
+    if has_deposits or has_sales or has_adjustments:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This product cannot be deleted because it has "
+                "inventory or transaction history."
+            ),
         )
 
     try:
-        db.delete(ingredient)
+        db.delete(product)
         db.commit()
+
     except Exception:
         db.rollback()
         raise
 
     return {
-        "message": "Ingredient deleted",
+        "message": "Product deleted",
     }
 
 
@@ -527,9 +732,10 @@ def delete_ingredient(
 # DEPOSIT PREVIEW
 # ---------------------------------------------------------
 
+
 @router.get("/deposits/preview")
 def preview_deposit(
-    ingredient_id: int,
+    product_id: int,
     quantity: Decimal,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
@@ -540,12 +746,12 @@ def preview_deposit(
             detail="Quantity must be greater than zero",
         )
 
-    ingredient = db.get(Ingredient, ingredient_id)
+    product = db.get(Product, product_id)
 
-    if not ingredient:
+    if not product:
         raise HTTPException(
             status_code=404,
-            detail="Ingredient not found",
+            detail="Product not found",
         )
 
     current_quantity = (
@@ -556,15 +762,17 @@ def preview_deposit(
             )
         )
         .filter(
-            Deposit.ingredient_id == ingredient_id,
+            Deposit.product_id == product_id,
             Deposit.quantity_remaining > 0,
         )
         .scalar()
     )
 
-    current_quantity = Decimal(str(current_quantity))
+    current_quantity = Decimal(
+        str(current_quantity)
+    )
 
-    desired_quantity = ingredient.desired_quantity
+    desired_quantity = product.desired_quantity
 
     space_available = max(
         desired_quantity - current_quantity,
@@ -578,11 +786,14 @@ def preview_deposit(
 
     store_credit = quantity - employee_credit
 
-    final_quantity = current_quantity + quantity
+    final_quantity = (
+        current_quantity + quantity
+    )
 
     return {
-        "ingredient_id": ingredient.id,
-        "ingredient_name": ingredient.name,
+        "product_id": product.id,
+        "product_name": product.name,
+        "product_type": product.type,
         "current_quantity": current_quantity,
         "desired_quantity": desired_quantity,
         "deposit_quantity": quantity,
@@ -597,10 +808,12 @@ def preview_deposit(
 # DEPOSITS
 # ---------------------------------------------------------
 
+
 @router.post("/deposits")
 def create_deposit(
-    ingredient_id: int,
+    product_id: int,
     quantity: Decimal,
+    store_stock: bool = False,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
 ):
@@ -610,12 +823,12 @@ def create_deposit(
             detail="Quantity must be greater than zero",
         )
 
-    ingredient = db.get(Ingredient, ingredient_id)
+    product = db.get(Product, product_id)
 
-    if not ingredient:
+    if not product:
         raise HTTPException(
             status_code=404,
-            detail="Ingredient not found",
+            detail="Product not found",
         )
 
     current_quantity = (
@@ -626,32 +839,38 @@ def create_deposit(
             )
         )
         .filter(
-            Deposit.ingredient_id == ingredient_id,
+            Deposit.product_id == product_id,
             Deposit.quantity_remaining > 0,
         )
         .scalar()
     )
 
-    current_quantity = Decimal(str(current_quantity))
-
-    space_available = max(
-        ingredient.desired_quantity - current_quantity,
-        Decimal("0.000"),
+    current_quantity = Decimal(
+        str(current_quantity)
     )
 
-    employee_credit = min(
-        quantity,
-        space_available,
-    )
+    if store_stock:
+        employee_credit = Decimal("0.000")
+        store_credit = quantity
+    else:
+        space_available = max(
+            product.desired_quantity - current_quantity,
+            Decimal("0.000"),
+        )
 
-    store_credit = quantity - employee_credit
+        employee_credit = min(
+            quantity,
+            space_available,
+        )
+
+        store_credit = quantity - employee_credit
 
     try:
         if employee_credit > 0:
             db.add(
                 Deposit(
                     employee_id=current_user.id,
-                    ingredient_id=ingredient_id,
+                    product_id=product_id,
                     quantity=employee_credit,
                     quantity_remaining=employee_credit,
                 )
@@ -661,7 +880,7 @@ def create_deposit(
             db.add(
                 Deposit(
                     employee_id=None,
-                    ingredient_id=ingredient_id,
+                    product_id=product_id,
                     quantity=store_credit,
                     quantity_remaining=store_credit,
                 )
@@ -674,8 +893,9 @@ def create_deposit(
         raise
 
     return {
-        "ingredient_id": ingredient.id,
-        "ingredient_name": ingredient.name,
+        "product_id": product.id,
+        "product_name": product.name,
+        "product_type": product.type,
         "deposited_quantity": quantity,
         "employee_credit": employee_credit,
         "store_credit": store_credit,
@@ -687,20 +907,24 @@ def create_deposit(
 # INVENTORY
 # ---------------------------------------------------------
 
+
 @router.get("/inventory")
 def get_inventory(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
 ):
-    ingredients = (
-        db.query(Ingredient)
-        .order_by(Ingredient.name)
+    products = (
+        db.query(Product)
+        .order_by(
+            Product.name,
+            Product.type,
+        )
         .all()
     )
 
     result = []
 
-    for ingredient in ingredients:
+    for product in products:
         current_quantity = (
             db.query(
                 func.coalesce(
@@ -709,15 +933,17 @@ def get_inventory(
                 )
             )
             .filter(
-                Deposit.ingredient_id == ingredient.id,
+                Deposit.product_id == product.id,
                 Deposit.quantity_remaining > 0,
             )
             .scalar()
         )
 
-        current_quantity = Decimal(str(current_quantity))
+        current_quantity = Decimal(
+            str(current_quantity)
+        )
 
-        desired_quantity = ingredient.desired_quantity
+        desired_quantity = product.desired_quantity
 
         needed_quantity = max(
             desired_quantity - current_quantity,
@@ -725,8 +951,9 @@ def get_inventory(
         )
 
         result.append({
-            "ingredient_id": ingredient.id,
-            "ingredient_name": ingredient.name,
+            "product_id": product.id,
+            "product_name": product.name,
+            "product_type": product.type,
             "current_quantity": current_quantity,
             "desired_quantity": desired_quantity,
             "needed_quantity": needed_quantity,
@@ -739,20 +966,24 @@ def get_inventory(
 # RECONCILIATION
 # ---------------------------------------------------------
 
+
 @router.get("/reconcile")
 def get_reconciliation_data(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
-    ingredients = (
-        db.query(Ingredient)
-        .order_by(Ingredient.name)
+    products = (
+        db.query(Product)
+        .order_by(
+            Product.name,
+            Product.type,
+        )
         .all()
     )
 
     result = []
 
-    for ingredient in ingredients:
+    for product in products:
         deposits = (
             db.query(Deposit, Employee)
             .outerjoin(
@@ -760,7 +991,7 @@ def get_reconciliation_data(
                 Deposit.employee_id == Employee.id,
             )
             .filter(
-                Deposit.ingredient_id == ingredient.id,
+                Deposit.product_id == product.id,
                 Deposit.quantity_remaining > 0,
             )
             .order_by(
@@ -802,10 +1033,11 @@ def get_reconciliation_data(
             })
 
         result.append({
-            "ingredient_id": ingredient.id,
-            "ingredient_name": ingredient.name,
+            "product_id": product.id,
+            "product_name": product.name,
+            "product_type": product.type,
             "pos_quantity": pos_quantity,
-            "desired_quantity": ingredient.desired_quantity,
+            "desired_quantity": product.desired_quantity,
             "store_quantity": store_quantity,
             "employee_lots": employee_lots,
         })
@@ -833,25 +1065,25 @@ def reconcile_inventory(
             detail="A reason is required",
         )
 
-    ingredient = (
-        db.query(Ingredient)
+    product = (
+        db.query(Product)
         .filter(
-            Ingredient.id == reconciliation.ingredient_id
+            Product.id == reconciliation.product_id
         )
         .with_for_update()
         .first()
     )
 
-    if not ingredient:
+    if not product:
         raise HTTPException(
             status_code=404,
-            detail="Ingredient not found",
+            detail="Product not found",
         )
 
     deposits = (
         db.query(Deposit)
         .filter(
-            Deposit.ingredient_id == ingredient.id,
+            Deposit.product_id == product.id,
             Deposit.quantity_remaining > 0,
         )
         .order_by(
@@ -878,11 +1110,14 @@ def reconcile_inventory(
     if difference == 0:
         raise HTTPException(
             status_code=400,
-            detail="Physical quantity already matches POS quantity",
+            detail=(
+                "Physical quantity already matches "
+                "POS quantity"
+            ),
         )
 
     adjustment = InventoryAdjustment(
-        ingredient_id=ingredient.id,
+        product_id=product.id,
         manager_id=current_user.id,
         pos_quantity_before=pos_quantity,
         physical_quantity=reconciliation.physical_quantity,
@@ -902,7 +1137,7 @@ def reconcile_inventory(
     if difference > 0:
         store_deposit = Deposit(
             employee_id=None,
-            ingredient_id=ingredient.id,
+            product_id=product.id,
             quantity=difference,
             quantity_remaining=difference,
         )
@@ -948,7 +1183,9 @@ def reconcile_inventory(
             store_available,
         )
 
-        remaining_store_reduction = store_to_remove
+        remaining_store_reduction = (
+            store_to_remove
+        )
 
         for deposit in store_deposits:
             if remaining_store_reduction <= 0:
@@ -971,7 +1208,9 @@ def reconcile_inventory(
                 )
             )
 
-        employee_shortage = shortage - store_to_remove
+        employee_shortage = (
+            shortage - store_to_remove
+        )
 
         if employee_shortage > 0:
             if not reconciliation.employee_allocations:
@@ -1020,9 +1259,10 @@ def reconcile_inventory(
                 raise HTTPException(
                     status_code=400,
                     detail=(
-                        "Employee inventory reductions must "
-                        "exactly cover the remaining shortage "
-                        f"of {employee_shortage:.3f}."
+                        "Employee inventory reductions "
+                        "must exactly cover the remaining "
+                        "shortage of "
+                        f"{employee_shortage:.3f}."
                     ),
                 )
 
@@ -1056,7 +1296,7 @@ def reconcile_inventory(
                         status_code=400,
                         detail=(
                             "One of the selected deposits "
-                            "does not belong to this ingredient."
+                            "does not belong to this product."
                         ),
                     )
 
@@ -1112,8 +1352,9 @@ def reconcile_inventory(
 
     return {
         "adjustment_id": adjustment.id,
-        "ingredient_id": ingredient.id,
-        "ingredient_name": ingredient.name,
+        "product_id": product.id,
+        "product_name": product.name,
+        "product_type": product.type,
         "pos_quantity_before": pos_quantity,
         "physical_quantity": reconciliation.physical_quantity,
         "quantity_change": difference,
@@ -1125,6 +1366,7 @@ def reconcile_inventory(
 # ---------------------------------------------------------
 # RECONCILIATION HISTORY
 # ---------------------------------------------------------
+
 
 @router.get("/reconcile/history")
 def get_reconciliation_history(
@@ -1144,9 +1386,9 @@ def get_reconciliation_history(
         result = []
 
         for adjustment in adjustments:
-            ingredient = db.get(
-                Ingredient,
-                adjustment.ingredient_id,
+            product = db.get(
+                Product,
+                adjustment.product_id,
             )
 
             manager = db.get(
@@ -1155,7 +1397,9 @@ def get_reconciliation_history(
             )
 
             allocations = (
-                db.query(InventoryAdjustmentAllocation)
+                db.query(
+                    InventoryAdjustmentAllocation
+                )
                 .filter(
                     InventoryAdjustmentAllocation.adjustment_id
                     == adjustment.id
@@ -1189,11 +1433,16 @@ def get_reconciliation_history(
 
             result.append({
                 "id": adjustment.id,
-                "ingredient_id": adjustment.ingredient_id,
-                "ingredient_name": (
-                    ingredient.name
-                    if ingredient
-                    else "Unknown Ingredient"
+                "product_id": adjustment.product_id,
+                "product_name": (
+                    product.name
+                    if product
+                    else "Unknown Product"
+                ),
+                "product_type": (
+                    product.type
+                    if product
+                    else None
                 ),
                 "manager_id": adjustment.manager_id,
                 "manager_name": (
@@ -1222,7 +1471,10 @@ def get_reconciliation_history(
 
         raise HTTPException(
             status_code=500,
-            detail=f"Reconciliation history error: {str(e)}",
+            detail=(
+                "Reconciliation history error: "
+                f"{str(e)}"
+            ),
         )
 
 
@@ -1230,16 +1482,17 @@ def get_reconciliation_history(
 # OWNERSHIP - MANAGERS
 # ---------------------------------------------------------
 
+
 @router.get("/ownership")
 def get_ownership(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
     deposits = (
-        db.query(Deposit, Ingredient, Employee)
+        db.query(Deposit, Product, Employee)
         .join(
-            Ingredient,
-            Deposit.ingredient_id == Ingredient.id,
+            Product,
+            Deposit.product_id == Product.id,
         )
         .outerjoin(
             Employee,
@@ -1249,7 +1502,8 @@ def get_ownership(
             Deposit.quantity_remaining > 0,
         )
         .order_by(
-            Ingredient.name,
+            Product.name,
+            Product.type,
             Deposit.employee_id,
             Deposit.deposited_at,
             Deposit.id,
@@ -1260,13 +1514,14 @@ def get_ownership(
     result = []
     store_totals = {}
 
-    for deposit, ingredient, employee in deposits:
+    for deposit, product, employee in deposits:
 
         if employee is None:
-            if ingredient.id not in store_totals:
-                store_totals[ingredient.id] = {
-                    "ingredient_id": ingredient.id,
-                    "ingredient_name": ingredient.name,
+            if product.id not in store_totals:
+                store_totals[product.id] = {
+                    "product_id": product.id,
+                    "product_name": product.name,
+                    "product_type": product.type,
                     "owner_id": None,
                     "owner_name": "Store",
                     "quantity": Decimal("0.000"),
@@ -1275,26 +1530,27 @@ def get_ownership(
                     "deposited_at": None,
                 }
 
-            store_totals[ingredient.id]["quantity"] += (
+            store_totals[product.id]["quantity"] += (
                 deposit.quantity_remaining
             )
 
-            store_totals[ingredient.id]["store_value"] += (
+            store_totals[product.id]["store_value"] += (
                 deposit.quantity_remaining
-                * ingredient.buy_cost
+                * product.buy_cost
             )
 
             continue
 
         credited_amount = (
             deposit.quantity_remaining
-            * ingredient.buy_cost
+            * product.buy_cost
         )
 
         result.append({
             "deposit_id": deposit.id,
-            "ingredient_id": ingredient.id,
-            "ingredient_name": ingredient.name,
+            "product_id": product.id,
+            "product_name": product.name,
+            "product_type": product.type,
             "owner_id": employee.id,
             "owner_name": employee.username,
             "quantity": deposit.quantity_remaining,
@@ -1307,7 +1563,8 @@ def get_ownership(
 
     result.sort(
         key=lambda item: (
-            item["ingredient_name"].lower(),
+            item["product_name"].lower(),
+            item["product_type"].lower(),
             0 if item["owner_name"] == "Store" else 1,
             item["owner_name"].lower(),
             item["deposited_at"] or datetime.min,
@@ -1322,23 +1579,25 @@ def get_ownership(
 # MY INVENTORY
 # ---------------------------------------------------------
 
+
 @router.get("/my-inventory")
 def get_my_inventory(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
 ):
     deposits = (
-        db.query(Deposit, Ingredient)
+        db.query(Deposit, Product)
         .join(
-            Ingredient,
-            Deposit.ingredient_id == Ingredient.id,
+            Product,
+            Deposit.product_id == Product.id,
         )
         .filter(
             Deposit.employee_id == current_user.id,
             Deposit.quantity_remaining > 0,
         )
         .order_by(
-            Ingredient.name,
+            Product.name,
+            Product.type,
             Deposit.deposited_at.desc(),
             Deposit.id.desc(),
         )
@@ -1347,16 +1606,17 @@ def get_my_inventory(
 
     result = []
 
-    for deposit, ingredient in deposits:
+    for deposit, product in deposits:
         credited_amount = (
             deposit.quantity_remaining
-            * ingredient.buy_cost
+            * product.buy_cost
         )
 
         result.append({
             "deposit_id": deposit.id,
-            "ingredient_id": ingredient.id,
-            "ingredient_name": ingredient.name,
+            "product_id": product.id,
+            "product_name": product.name,
+            "product_type": product.type,
             "quantity": deposit.quantity_remaining,
             "credited_amount": credited_amount,
             "deposited_at": deposit.deposited_at,
@@ -1369,9 +1629,10 @@ def get_my_inventory(
 # SALES
 # ---------------------------------------------------------
 
+
 @router.post("/sales")
 def create_sale(
-    ingredient_id: int,
+    product_id: int,
     quantity: Decimal,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
@@ -1385,9 +1646,10 @@ def create_sale(
     try:
         sale = process_sale(
             db,
-            ingredient_id,
+            product_id,
             quantity,
         )
+
     except ValueError as e:
         db.rollback()
 
@@ -1396,9 +1658,24 @@ def create_sale(
             detail=str(e),
         )
 
+    product = db.get(
+        Product,
+        sale.product_id,
+    )
+
     return {
         "sale_id": sale.id,
-        "ingredient_id": sale.ingredient_id,
+        "product_id": sale.product_id,
+        "product_name": (
+            product.name
+            if product
+            else None
+        ),
+        "product_type": (
+            product.type
+            if product
+            else None
+        ),
         "quantity": sale.quantity,
     }
 
@@ -1406,6 +1683,7 @@ def create_sale(
 # ---------------------------------------------------------
 # PAYOUTS
 # ---------------------------------------------------------
+
 
 @router.get("/payouts")
 def get_payouts(
@@ -1454,7 +1732,10 @@ def pay_employee(
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
-    employee = db.get(Employee, employee_id)
+    employee = db.get(
+        Employee,
+        employee_id,
+    )
 
     if not employee:
         raise HTTPException(
@@ -1468,10 +1749,15 @@ def pay_employee(
             detail="Payment amount must be greater than zero",
         )
 
-    if amount != amount.quantize(Decimal("0.01")):
+    if amount != amount.quantize(
+        Decimal("0.01")
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Payment amount must have at most 2 decimal places",
+            detail=(
+                "Payment amount must have at most "
+                "2 decimal places"
+            ),
         )
 
     payouts = (
@@ -1509,7 +1795,7 @@ def pay_employee(
             status_code=400,
             detail=(
                 "Payment cannot exceed outstanding balance "
-                f"of {outstanding:.2f}g"
+                f"of {outstanding:.2f}"
             ),
         )
 
@@ -1548,6 +1834,7 @@ def pay_employee(
     try:
         db.add(payment)
         db.commit()
+
     except Exception:
         db.rollback()
         raise
@@ -1564,6 +1851,7 @@ def pay_employee(
 # ---------------------------------------------------------
 # PAYOUT HISTORY
 # ---------------------------------------------------------
+
 
 @router.get("/payout-history")
 def get_payout_history(

@@ -47,8 +47,8 @@ class Employee(Base):
     )
 
 
-class Ingredient(Base):
-    __tablename__ = "ingredients"
+class Product(Base):
+    __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(
         Integer,
@@ -57,7 +57,11 @@ class Ingredient(Base):
 
     name: Mapped[str] = mapped_column(
         String(100),
-        unique=True,
+        nullable=False,
+    )
+
+    type: Mapped[str] = mapped_column(
+        String(50),
         nullable=False,
     )
 
@@ -98,8 +102,8 @@ class Deposit(Base):
         nullable=True,
     )
 
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"),
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id"),
         nullable=False,
     )
 
@@ -128,8 +132,8 @@ class Sale(Base):
         primary_key=True,
     )
 
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"),
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id"),
         nullable=False,
     )
 
@@ -229,8 +233,8 @@ class InventoryAdjustment(Base):
         primary_key=True,
     )
 
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"),
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.id"),
         nullable=False,
     )
 
