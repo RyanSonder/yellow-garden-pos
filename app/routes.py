@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -9,9 +10,11 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .auth import get_current_user
+from .config import JWT_ALGORITHM, JWT_SECRET_KEY
 from .database import SessionLocal
 from .fifo import process_sale
 from .models import (
+    AuditLog,
     Deposit,
     Employee,
     Product,
@@ -26,9 +29,6 @@ from .models import (
 router = APIRouter()
 
 password_hash = PasswordHash.recommended()
-
-SECRET_KEY = "change-this-later"
-ALGORITHM = "HS256"
 
 
 # ---------------------------------------------------------
@@ -48,6 +48,11 @@ class ProductBulkUpdate(BaseModel):
 class AdminEmployeeUpdate(BaseModel):
     role: str | None = None
     password: str | None = None
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 
 class ReconcileAllocation(BaseModel):
@@ -76,6 +81,26 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def add_audit_log(
+    db: Session,
+    *,
+    employee_id: int | None,
+    action: str,
+    entity_type: str,
+    entity_id: int | None,
+    details: dict | None = None,
+):
+    db.add(
+        AuditLog(
+            employee_id=employee_id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            details=json.dumps(details or {}, default=str),
+        )
+    )
 
 
 # ---------------------------------------------------------
@@ -299,18 +324,17 @@ def update_employee_as_admin(
 
 @router.post("/login")
 def login(
-    username: str,
-    password: str,
+    credentials: LoginRequest,
     db: Session = Depends(get_db),
 ):
     employee = (
         db.query(Employee)
-        .filter(Employee.username == username)
+        .filter(Employee.username == credentials.username)
         .first()
     )
 
     if not employee or not password_hash.verify(
-        password,
+        credentials.password,
         employee.password_hash,
     ):
         raise HTTPException(
@@ -327,8 +351,8 @@ def login(
                 + timedelta(hours=8)
             ),
         },
-        SECRET_KEY,
-        algorithm=ALGORITHM,
+        JWT_SECRET_KEY,
+        algorithm=JWT_ALGORITHM,
     )
 
     return {
@@ -356,6 +380,43 @@ def get_me(
 # ---------------------------------------------------------
 # PRODUCTS
 # ---------------------------------------------------------
+
+
+@router.get("/audit-log")
+def get_audit_log(
+    db: Session = Depends(get_db),
+    current_user: Employee = Depends(require_manager_or_admin),
+):
+    entries = (
+        db.query(AuditLog)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .limit(100)
+        .all()
+    )
+
+    result = []
+    for entry in entries:
+        employee = db.get(Employee, entry.employee_id)
+        details = {}
+
+        if entry.details:
+            try:
+                details = json.loads(entry.details)
+            except json.JSONDecodeError:
+                details = {"raw": entry.details}
+
+        result.append({
+            "id": entry.id,
+            "employee_id": entry.employee_id,
+            "employee_name": employee.username if employee else None,
+            "action": entry.action,
+            "entity_type": entry.entity_type,
+            "entity_id": entry.entity_id,
+            "details": details,
+            "created_at": entry.created_at,
+        })
+
+    return result
 
 
 @router.post("/products")
@@ -429,6 +490,21 @@ def create_product(
 
     try:
         db.add(product)
+        db.flush()
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="create_product",
+            entity_type="product",
+            entity_id=product.id,
+            details={
+                "name": product.name,
+                "type": product.type,
+                "buy_cost": str(product.buy_cost),
+                "sell_cost": str(product.sell_cost),
+                "desired_quantity": str(product.desired_quantity),
+            },
+        )
         db.commit()
         db.refresh(product)
 
@@ -441,12 +517,17 @@ def create_product(
 
 @router.get("/products")
 def get_products(
+    include_archived: bool = False,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(get_current_user),
 ):
+    query = db.query(Product)
+
+    if not include_archived:
+        query = query.filter(Product.is_active.is_(True))
+
     return (
-        db.query(Product)
-        .order_by(
+        query.order_by(
             Product.name,
             Product.type,
         )
@@ -683,40 +764,19 @@ def delete_product(
             detail="Product not found",
         )
 
-    has_deposits = (
-        db.query(Deposit.id)
-        .filter(Deposit.product_id == product_id)
-        .first()
-        is not None
-    )
-
-    has_sales = (
-        db.query(Sale.id)
-        .filter(Sale.product_id == product_id)
-        .first()
-        is not None
-    )
-
-    has_adjustments = (
-        db.query(InventoryAdjustment.id)
-        .filter(
-            InventoryAdjustment.product_id == product_id
-        )
-        .first()
-        is not None
-    )
-
-    if has_deposits or has_sales or has_adjustments:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "This product cannot be deleted because it has "
-                "inventory or transaction history."
-            ),
-        )
-
     try:
-        db.delete(product)
+        product.is_active = False
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="archive_product",
+            entity_type="product",
+            entity_id=product.id,
+            details={
+                "name": product.name,
+                "type": product.type,
+            },
+        )
         db.commit()
 
     except Exception:
@@ -724,7 +784,47 @@ def delete_product(
         raise
 
     return {
-        "message": "Product deleted",
+        "message": "Product archived",
+    }
+
+
+@router.post("/products/{product_id}/restore")
+def restore_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: Employee = Depends(require_manager_or_admin),
+):
+    product = db.get(Product, product_id)
+
+    if not product:
+        raise HTTPException(
+            status_code=404,
+            detail="Product not found",
+        )
+
+    product.is_active = True
+
+    try:
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="restore_product",
+            entity_type="product",
+            entity_id=product.id,
+            details={
+                "name": product.name,
+                "type": product.type,
+            },
+        )
+        db.commit()
+        db.refresh(product)
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "message": "Product restored",
+        "product_id": product.id,
     }
 
 
@@ -1343,6 +1443,22 @@ def reconcile_inventory(
                 )
 
     try:
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="reconcile_inventory",
+            entity_type="inventory_adjustment",
+            entity_id=adjustment.id,
+            details={
+                "product_id": product.id,
+                "product_name": product.name,
+                "product_type": product.type,
+                "pos_quantity_before": str(pos_quantity),
+                "physical_quantity": str(reconciliation.physical_quantity),
+                "quantity_change": str(difference),
+                "reason": reason,
+            },
+        )
         db.commit()
         db.refresh(adjustment)
 
@@ -1476,6 +1592,145 @@ def get_reconciliation_history(
                 f"{str(e)}"
             ),
         )
+
+
+# ---------------------------------------------------------
+# REPORTS / CLOSEOUT
+# ---------------------------------------------------------
+
+
+@router.get("/reports/closeout")
+def get_closeout_report(
+    db: Session = Depends(get_db),
+    current_user: Employee = Depends(require_manager_or_admin),
+):
+    sales = (
+        db.query(Sale)
+        .order_by(Sale.sold_at.desc(), Sale.id.desc())
+        .all()
+    )
+
+    total_units_sold = sum(
+        (sale.quantity for sale in sales),
+        Decimal("0.000"),
+    )
+
+    gross_sales = sum(
+        (
+            db.query(Product.sell_cost)
+            .filter(Product.id == sale.product_id)
+            .scalar()
+            * sale.quantity
+            for sale in sales
+        ),
+        Decimal("0.00"),
+    )
+
+    payouts = (
+        db.query(
+            Employee.id.label("employee_id"),
+            Employee.username.label("employee_name"),
+            func.sum(
+                PayoutAllocation.payout_amount
+                - PayoutAllocation.paid_amount
+            ).label("amount_owed"),
+        )
+        .join(
+            PayoutAllocation,
+            PayoutAllocation.employee_id == Employee.id,
+        )
+        .filter(
+            PayoutAllocation.payout_amount
+            > PayoutAllocation.paid_amount,
+        )
+        .group_by(
+            Employee.id,
+            Employee.username,
+        )
+        .all()
+    )
+
+    total_outstanding_payouts = sum(
+        (
+            Decimal(str(payout.amount_owed))
+            for payout in payouts
+        ),
+        Decimal("0.00"),
+    )
+
+    return {
+        "total_units_sold": total_units_sold,
+        "gross_sales": gross_sales,
+        "total_outstanding_payouts": total_outstanding_payouts,
+        "payouts": [
+            {
+                "employee_id": payout.employee_id,
+                "employee_name": payout.employee_name,
+                "amount_owed": Decimal(str(payout.amount_owed)),
+            }
+            for payout in payouts
+        ],
+    }
+
+
+@router.get("/reports/sales-history")
+def get_sales_history(
+    group_by: str = "day",
+    db: Session = Depends(get_db),
+    current_user: Employee = Depends(require_manager_or_admin),
+):
+    if group_by not in {"day", "week"}:
+        raise HTTPException(
+            status_code=400,
+            detail="group_by must be 'day' or 'week'",
+        )
+
+    sales = (
+        db.query(Sale, Product.sell_cost)
+        .join(Product, Product.id == Sale.product_id)
+        .order_by(Sale.sold_at, Sale.id)
+        .all()
+    )
+
+    periods = {}
+
+    for sale, sell_cost in sales:
+        sold_at = sale.sold_at
+
+        if group_by == "day":
+            period_start = sold_at.replace(
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
+        else:
+            period_start = (
+                sold_at.replace(
+                    hour=0,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
+                )
+                - timedelta(days=sold_at.weekday())
+            )
+
+        if period_start not in periods:
+            periods[period_start] = {
+                "period_start": period_start,
+                "total_units_sold": Decimal("0.000"),
+                "gross_sales": Decimal("0.00"),
+            }
+
+        periods[period_start]["total_units_sold"] += sale.quantity
+        periods[period_start]["gross_sales"] += (
+            sale.quantity * sell_cost
+        )
+
+    return {
+        "group_by": group_by,
+        "periods": list(periods.values()),
+    }
 
 
 # ---------------------------------------------------------

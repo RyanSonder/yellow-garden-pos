@@ -5,9 +5,7 @@ from sqlalchemy.orm import Session
 
 from .database import SessionLocal
 from .models import Employee
-
-SECRET_KEY = "change-this-later"
-ALGORITHM = "HS256"
+from .config import JWT_ALGORITHM, JWT_SECRET_KEY
 
 security = HTTPBearer()
 
@@ -27,8 +25,8 @@ def get_current_user(
     try:
         payload = jwt.decode(
             credentials.credentials,
-            SECRET_KEY,
-            algorithms=[ALGORITHM],
+            JWT_SECRET_KEY,
+            algorithms=[JWT_ALGORITHM],
         )
 
         employee_id = int(payload["sub"])

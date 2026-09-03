@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from decimal import Decimal
 
@@ -47,6 +48,46 @@ class Employee(Base):
     )
 
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    employee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("employees.id"),
+        nullable=True,
+    )
+
+    action: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    entity_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    entity_id: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+
+    details: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -79,6 +120,12 @@ class Product(Base):
         DECIMAL(10, 3),
         nullable=False,
         default=Decimal("0.000"),
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
     )
 
     created_at: Mapped[datetime] = mapped_column(

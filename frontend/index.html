@@ -309,6 +309,91 @@
         text-align: center;
     }
 
+    .report-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(160px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+
+    .report-metric {
+        background: var(--cream-soft);
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--gold);
+        padding: 16px;
+    }
+
+    .report-metric-label {
+        color: var(--muted-ink);
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .report-metric-value {
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 26px;
+        margin-top: 7px;
+    }
+
+    .audit-details {
+        max-width: 340px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .history-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 18px 0;
+    }
+
+    .history-controls select {
+        margin: 0;
+    }
+
+    .history-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        min-height: 240px;
+        overflow-x: auto;
+        padding: 22px 8px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .history-bar-group {
+        display: flex;
+        flex: 0 0 58px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        height: 220px;
+    }
+
+    .history-bar-value {
+        color: var(--ink);
+        font-size: 11px;
+        margin-bottom: 5px;
+        white-space: nowrap;
+    }
+
+    .history-bar {
+        width: 34px;
+        min-height: 3px;
+        background: var(--leaf);
+        border-radius: 3px 3px 0 0;
+    }
+
+    .history-bar-label {
+        color: var(--muted-ink);
+        font-size: 11px;
+        margin-top: 7px;
+        white-space: nowrap;
+    }
+
     .product-type-group-row td {
         background: rgba(200, 148, 47, 0.13);
         border-top: 2px solid rgba(154, 108, 23, 0.3);
@@ -667,6 +752,10 @@
     }
 
     @media (max-width: 720px) {
+        .report-summary {
+            grid-template-columns: 1fr;
+        }
+
         header {
             align-items: flex-start;
             gap: 16px;
@@ -795,6 +884,24 @@
 </button>
 
 <button
+    id="reportsTabButton"
+    class="tab-button"
+    onclick="showTab('reports', this)"
+    style="display: none;"
+>
+    Reports
+</button>
+
+<button
+    id="auditTabButton"
+    class="tab-button"
+    onclick="showTab('audit', this)"
+    style="display: none;"
+>
+    Audit Log
+</button>
+
+<button
     id="productsTabButton"
     class="tab-button"
     onclick="showTab('products', this)"
@@ -811,6 +918,87 @@
 >
     Admin
 </button>
+
+</div>
+
+<!-- REPORTS -->
+
+<div id="reports" class="tab">
+
+<div class="card">
+
+    <h2>Closeout Report</h2>
+
+    <div class="report-summary">
+        <div class="report-metric">
+            <div class="report-metric-label">Units Sold</div>
+            <div id="reportUnitsSold" class="report-metric-value">0</div>
+        </div>
+        <div class="report-metric">
+            <div class="report-metric-label">Gross Sales</div>
+            <div id="reportGrossSales" class="report-metric-value">0.00g</div>
+        </div>
+        <div class="report-metric">
+            <div class="report-metric-label">Outstanding Payouts</div>
+            <div id="reportOutstanding" class="report-metric-value">0.00g</div>
+        </div>
+    </div>
+
+    <button type="button" onclick="loadCloseoutReport()">Refresh Report</button>
+    <div id="reportMessage" class="message"></div>
+
+    <h3>Sales History</h3>
+    <div class="history-controls">
+        <label for="historyGrouping">Group by</label>
+        <select id="historyGrouping" onchange="loadSalesHistory()">
+            <option value="day">Day</option>
+            <option value="week">Week</option>
+        </select>
+    </div>
+    <div id="salesHistoryChart" class="history-chart"></div>
+    <div id="salesHistoryMessage" class="message"></div>
+
+    <h3>Unpaid Employee Balances</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Amount Owed</th>
+            </tr>
+        </thead>
+        <tbody id="reportPayoutsTable"></tbody>
+    </table>
+
+</div>
+
+</div>
+
+<!-- AUDIT LOG -->
+
+<div id="audit" class="tab">
+
+<div class="card">
+
+    <h2>Audit Log</h2>
+    <button type="button" onclick="loadAuditLog()">Refresh Log</button>
+    <div id="auditMessage" class="message"></div>
+
+    <br><br>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Employee</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody id="auditTable"></tbody>
+    </table>
+
+</div>
 
 </div>
 
@@ -1364,8 +1552,12 @@
 
     <h2>Products</h2>
 
-    <button onclick="loadProducts()">
-        Refresh
+    <button onclick="loadProducts(false)">
+        Active Products
+    </button>
+
+    <button onclick="loadProducts(true)">
+        Show Archived
     </button>
 
     <button
@@ -1851,6 +2043,14 @@ async function initialize() {
                 .style.display = "block";
 
             document
+                .getElementById("reportsTabButton")
+                .style.display = "block";
+
+            document
+                .getElementById("auditTabButton")
+                .style.display = "block";
+
+            document
                 .getElementById("ownershipTabButton")
                 .style.display = "block";
 
@@ -1887,6 +2087,9 @@ async function initialize() {
             await loadOwnership();
             await loadReconciliation();
             await loadReconcileHistory();
+            await loadCloseoutReport();
+            await loadSalesHistory();
+            await loadAuditLog();
         }
 
     } catch (error) {
@@ -1934,6 +2137,15 @@ function showTab(tabName, button) {
         loadPayouts();
     }
 
+    if (tabName === "reports") {
+        loadCloseoutReport();
+        loadSalesHistory();
+    }
+
+    if (tabName === "audit") {
+        loadAuditLog();
+    }
+
     if (tabName === "ownership") {
         loadOwnership();
     }
@@ -1955,15 +2167,168 @@ function showTab(tabName, button) {
 
 
 // ---------------------------------------------------------
+// REPORTS AND AUDIT
+// ---------------------------------------------------------
+
+async function loadCloseoutReport() {
+
+    const message = document.getElementById("reportMessage");
+
+    try {
+        const report = await apiFetch("/reports/closeout");
+
+        document.getElementById("reportUnitsSold").textContent =
+            formatQuantity(report.total_units_sold);
+        document.getElementById("reportGrossSales").textContent =
+            formatCost(report.gross_sales);
+        document.getElementById("reportOutstanding").textContent =
+            formatCost(report.total_outstanding_payouts);
+
+        const table = document.getElementById("reportPayoutsTable");
+        table.innerHTML = "";
+
+        if (!report.payouts.length) {
+            table.innerHTML =
+                '<tr><td colspan="2" class="empty-message">No unpaid balances.</td></tr>';
+        } else {
+            report.payouts.forEach(payout => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${escapeHtml(payout.employee_name)}</td>
+                    <td>${formatCost(payout.amount_owed)}</td>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        message.textContent = "Report refreshed.";
+        message.className = "message success";
+    } catch (error) {
+        message.textContent = error.message;
+        message.className = "message error";
+    }
+}
+
+
+async function loadSalesHistory() {
+
+    const message = document.getElementById("salesHistoryMessage");
+    const chart = document.getElementById("salesHistoryChart");
+    const groupBy = document.getElementById("historyGrouping").value;
+
+    try {
+        const history = await apiFetch(
+            `/reports/sales-history?group_by=${groupBy}`
+        );
+
+        chart.innerHTML = "";
+
+        if (!history.periods.length) {
+            chart.innerHTML =
+                '<div class="empty-message">No sales history yet.</div>';
+        } else {
+            const maximum = Math.max(
+                ...history.periods.map(period => Number(period.gross_sales)),
+                0.01
+            );
+
+            history.periods.forEach(period => {
+                const group = document.createElement("div");
+                group.className = "history-bar-group";
+
+                const value = document.createElement("div");
+                value.className = "history-bar-value";
+                value.textContent = formatCost(period.gross_sales);
+
+                const bar = document.createElement("div");
+                bar.className = "history-bar";
+                bar.style.height = `${Math.max(
+                    3,
+                    (Number(period.gross_sales) / maximum) * 190
+                )}px`;
+                bar.title = `${formatCost(period.gross_sales)} gross sales`;
+
+                const label = document.createElement("div");
+                label.className = "history-bar-label";
+                label.textContent = formatHistoryPeriod(
+                    period.period_start,
+                    groupBy
+                );
+
+                group.append(value, bar, label);
+                chart.appendChild(group);
+            });
+        }
+
+        message.textContent = "Sales history refreshed.";
+        message.className = "message success";
+    } catch (error) {
+        message.textContent = error.message;
+        message.className = "message error";
+    }
+}
+
+
+function formatHistoryPeriod(timestamp, groupBy) {
+    const date = new Date(timestamp);
+    const options = groupBy === "week"
+        ? {month: "short", day: "numeric"}
+        : {month: "short", day: "numeric"};
+
+    return date.toLocaleDateString(undefined, options);
+}
+
+
+async function loadAuditLog() {
+
+    const message = document.getElementById("auditMessage");
+
+    try {
+        const entries = await apiFetch("/audit-log");
+        const table = document.getElementById("auditTable");
+        table.innerHTML = "";
+
+        if (!entries.length) {
+            table.innerHTML =
+                '<tr><td colspan="5" class="empty-message">No audit entries yet.</td></tr>';
+        } else {
+            entries.forEach(entry => {
+                const row = document.createElement("tr");
+                const details = JSON.stringify(entry.details || {}, null, 2);
+                row.innerHTML = `
+                    <td>${formatTimestamp(entry.created_at)}</td>
+                    <td>${escapeHtml(entry.employee_name || "System")}</td>
+                    <td>${escapeHtml(entry.action)}</td>
+                    <td>${escapeHtml(entry.entity_type)} #${escapeHtml(entry.entity_id ?? "-")}</td>
+                    <td class="audit-details">${escapeHtml(details)}</td>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        message.textContent = "Audit log refreshed.";
+        message.className = "message success";
+    } catch (error) {
+        message.textContent = error.message;
+        message.className = "message error";
+    }
+}
+
+
+// ---------------------------------------------------------
 // PRODUCTS
 // ---------------------------------------------------------
 
-async function loadProducts() {
+async function loadProducts(includeArchived = false) {
 
     try {
 
         const products =
-            await apiFetch("/products");
+            await apiFetch(
+                includeArchived
+                    ? "/products?include_archived=true"
+                    : "/products"
+            );
 
         const saleSelect =
             document.getElementById("saleProduct");
@@ -2020,11 +2385,15 @@ async function loadProducts() {
             const row =
                 document.createElement("tr");
 
+            const isArchived =
+                product.is_active === false;
+
             row.innerHTML = `
                 <td>
                     ${escapeHtml(
                         product.name
                     )}
+                    ${isArchived ? " (Archived)" : ""}
                 </td>
 
                 <td>
@@ -2043,6 +2412,7 @@ async function loadProducts() {
                         value="${Number(
                             product.buy_cost
                         ).toFixed(2)}"
+                        ${isArchived ? "disabled" : ""}
                     >
                 </td>
 
@@ -2056,6 +2426,7 @@ async function loadProducts() {
                         value="${Number(
                             product.sell_cost
                         ).toFixed(2)}"
+                        ${isArchived ? "disabled" : ""}
                     >
                 </td>
 
@@ -2069,19 +2440,16 @@ async function loadProducts() {
                         value="${Number(
                             product.desired_quantity
                         )}"
+                        ${isArchived ? "disabled" : ""}
                     >
                 </td>
 
                 <td>
                     <button
-                        class="batch-remove-btn"
-                        onclick="deleteProduct(
-                            ${product.id},
-                            '${escapeJs(product.name)}',
-                            '${escapeJs(product.type)}'
-                        )"
+                        class="${isArchived ? "save-btn" : "batch-remove-btn"}"
+                        onclick="${isArchived ? `restoreProduct(${product.id}, '${escapeJs(product.name)}', '${escapeJs(product.type)}')` : `deleteProduct(${product.id}, '${escapeJs(product.name)}', '${escapeJs(product.type)}')` }"
                     >
-                        Delete
+                        ${isArchived ? "Restore" : "Archive"}
                     </button>
                 </td>
             `;
@@ -2108,7 +2476,7 @@ async function deleteProduct(
 
     const confirmed =
         confirm(
-            `Delete ${productName} (${productType})?`
+            `Archive ${productName} (${productType})?`
         );
 
     if (!confirmed) {
@@ -2133,9 +2501,9 @@ async function deleteProduct(
             "message success";
 
         message.textContent =
-            `${productName} deleted successfully.`;
+            `${productName} archived successfully.`;
 
-        await loadProducts();
+        await loadProducts(false);
         await loadInventory();
         await loadMyInventory();
 
@@ -2151,6 +2519,57 @@ async function deleteProduct(
             await loadReconciliation();
             await loadReconcileHistory();
         }
+
+    } catch (error) {
+
+        message.className =
+            "message error";
+
+        message.textContent =
+            error.message;
+
+    }
+
+}
+
+async function restoreProduct(
+    productId,
+    productName,
+    productType
+) {
+
+    const confirmed =
+        confirm(
+            `Restore ${productName} (${productType})?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const message =
+        document.getElementById(
+            "productSaveMessage"
+        );
+
+    try {
+
+        await apiFetch(
+            `/products/${productId}/restore`,
+            {
+                method: "POST"
+            }
+        );
+
+        message.className =
+            "message success";
+
+        message.textContent =
+            `${productName} restored successfully.`;
+
+        await loadProducts(true);
+        await loadInventory();
+        await loadMyInventory();
 
     } catch (error) {
 

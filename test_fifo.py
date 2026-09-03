@@ -1,11 +1,93 @@
 from decimal import Decimal
 
 from app.database import SessionLocal
-from app.models import Employee, Product, Deposit, PayoutAllocation
+from app.models import (
+    AuditLog,
+    Deposit,
+    Employee,
+    InventoryAdjustment,
+    InventoryAdjustmentAllocation,
+    PayoutAllocation,
+    PayoutPayment,
+    Product,
+    Sale,
+)
 from app.fifo import process_sale
 
 
 with SessionLocal() as db:
+    target_employees = ["bob_test", "alice_test"]
+    employee_ids = [
+        employee.id
+        for employee in db.query(Employee)
+        .filter(Employee.username.in_(target_employees))
+        .all()
+    ]
+    product_ids = [
+        product.id
+        for product in db.query(Product)
+        .filter(Product.name == "Tomatoes", Product.type == "other")
+        .all()
+    ]
+
+    sale_ids = [
+        sale.id
+        for sale in db.query(Sale)
+        .filter(Sale.product_id.in_(product_ids))
+        .all()
+    ]
+
+    if sale_ids:
+        db.query(PayoutAllocation).filter(
+            PayoutAllocation.sale_id.in_(sale_ids)
+        ).delete(synchronize_session=False)
+
+    deposit_ids = [
+        deposit.id
+        for deposit in db.query(Deposit)
+        .filter(
+            (Deposit.product_id.in_(product_ids)) |
+            (Deposit.employee_id.in_(employee_ids))
+        )
+        .all()
+    ]
+
+    if deposit_ids:
+        db.query(InventoryAdjustmentAllocation).filter(
+            InventoryAdjustmentAllocation.deposit_id.in_(deposit_ids)
+        ).delete(synchronize_session=False)
+        db.query(PayoutAllocation).filter(
+            PayoutAllocation.deposit_id.in_(deposit_ids)
+        ).delete(synchronize_session=False)
+        db.query(Deposit).filter(
+            Deposit.id.in_(deposit_ids)
+        ).delete(synchronize_session=False)
+
+    if employee_ids:
+        db.query(PayoutPayment).filter(
+            PayoutPayment.employee_id.in_(employee_ids)
+        ).delete(synchronize_session=False)
+        db.query(InventoryAdjustment).filter(
+            InventoryAdjustment.manager_id.in_(employee_ids)
+        ).delete(synchronize_session=False)
+        db.query(AuditLog).filter(
+            AuditLog.employee_id.in_(employee_ids)
+        ).delete(synchronize_session=False)
+        db.query(Employee).filter(
+            Employee.id.in_(employee_ids)
+        ).delete(synchronize_session=False)
+
+    if sale_ids:
+        db.query(Sale).filter(
+            Sale.id.in_(sale_ids)
+        ).delete(synchronize_session=False)
+
+    if product_ids:
+        db.query(Product).filter(
+            Product.id.in_(product_ids)
+        ).delete(synchronize_session=False)
+
+    db.commit()
 
     # Create test employees
     bob = Employee(username="bob_test", password_hash="test")
