@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS System</title>
+
+```
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        background: #f4f4f4;
+    }
+
+    header {
+        background: #222;
+        color: white;
+        padding: 15px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    header h1 {
+        margin: 0;
+    }
+
+    button {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .logout-btn {
+        background: #d9534f;
+        color: white;
+    }
+
+    .tabs {
+        display: flex;
+        background: white;
+        border-bottom: 1px solid #ccc;
+    }
+
+    .tab-button {
+        padding: 15px 20px;
+        background: white;
+        border-right: 1px solid #ddd;
+        border-radius: 0;
+    }
+
+    .tab-button:hover {
+        background: #eee;
+    }
+
+    .tab-button.active {
+        background: #ddd;
+    }
+
+    .tab {
+        display: none;
+        padding: 25px;
+    }
+
+    .tab.active {
+        display: block;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 6px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    input,
+    select {
+        padding: 8px;
+        margin: 5px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    th,
+    td {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        text-align: left;
+    }
+
+    th {
+        background: #eee;
+    }
+
+    .pay-btn {
+        background: #5cb85c;
+        color: white;
+    }
+
+    .pay-btn:hover {
+        background: #4cae4c;
+    }
+
+    .message {
+        margin-top: 10px;
+        padding: 10px;
+    }
+
+    .error {
+        color: #b30000;
+    }
+
+    .success {
+        color: #267326;
+    }
+
+    .payment-input {
+        width: 100px;
+        margin: 0;
+    }
+</style>
+```
+
+</head>
+
+<body>
+
+<header>
+    <h1>POS System</h1>
+    <div>
+        <span id="usernameDisplay"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</header>
+
+<div class="tabs">
+
+```
+<button class="tab-button active" onclick="showTab('sales', this)">
+    Sales
+</button>
+
+<button class="tab-button" onclick="showTab('deposits', this)">
+    Deposits
+</button>
+
+<button class="tab-button" onclick="showTab('inventory', this)">
+    Inventory
+</button>
+
+<button
+    id="payoutsTabButton"
+    class="tab-button"
+    onclick="showTab('payouts', this)"
+    style="display: none;"
+>
+    Payouts
+</button>
+
+<button
+    id="ingredientsTabButton"
+    class="tab-button"
+    onclick="showTab('ingredients', this)"
+    style="display: none;"
+>
+    Ingredients
+</button>
+```
+
+</div>
+
+<!-- SALES -->
+
+<div id="sales" class="tab active">
+
+```
+<div class="card">
+
+    <h2>Record Sale</h2>
+
+    <form id="saleForm">
+
+        <select id="saleIngredient" required>
+            <option value="">Select ingredient</option>
+        </select>
+
+        <input
+            type="number"
+            id="saleQuantity"
+            step="0.001"
+            min="0.001"
+            placeholder="Quantity"
+            required
+        >
+
+        <button type="submit">
+            Record Sale
+        </button>
+
+    </form>
+
+    <div id="saleMessage" class="message"></div>
+
+</div>
+```
+
+</div>
+
+<!-- DEPOSITS -->
+
+<div id="deposits" class="tab">
+
+```
+<div class="card">
+
+    <h2>Make Deposit</h2>
+
+    <form id="depositForm">
+
+        <select id="depositIngredient" required>
+            <option value="">Select ingredient</option>
+        </select>
+
+        <input
+            type="number"
+            id="depositQuantity"
+            step="0.001"
+            min="0.001"
+            placeholder="Quantity"
+            required
+        >
+
+        <button type="submit">
+            Deposit
+        </button>
+
+    </form>
+
+    <div id="depositMessage" class="message"></div>
+
+</div>
+```
+
+</div>
+
+<!-- INVENTORY -->
+
+<div id="inventory" class="tab">
+
+```
+<div class="card">
+
+    <h2>Inventory</h2>
+
+    <button onclick="loadInventory()">
+        Refresh
+    </button>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Ingredient</th>
+                <th>Original Quantity</th>
+                <th>Remaining</th>
+                <th>Deposited</th>
+            </tr>
+        </thead>
+
+        <tbody id="inventoryTable">
+        </tbody>
+
+    </table>
+
+</div>
+```
+
+</div>
+
+<!-- PAYOUTS -->
+
+<div id="payouts" class="tab">
+
+```
+<div class="card">
+
+    <h2>Employee Payouts</h2>
+
+    <button onclick="loadPayouts()">
+        Refresh
+    </button>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Amount Owed</th>
+                <th>Amount to Pay</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody id="payoutsTable">
+        </tbody>
+
+    </table>
+
+    <div id="payoutMessage" class="message"></div>
+
+</div>
+```
+
+</div>
+
+<!-- INGREDIENTS -->
+
+<div id="ingredients" class="tab">
+
+```
+<div class="card">
+
+    <h2>Add Ingredient</h2>
+
+    <form id="ingredientForm">
+
+        <input
+            type="text"
+            id="ingredientName"
+            placeholder="Ingredient name"
+            required
+        >
+
+        <input
+            type="number"
+            id="buyCost"
+            step="0.01"
+            min="0"
+            placeholder="Buy cost"
+            required
+        >
+
+        <input
+            type="number"
+            id="sellCost"
+            step="0.01"
+            min="0"
+            placeholder="Sell cost"
+            required
+        >
+
+        <button type="submit">
+            Add Ingredient
+        </button>
+
+    </form>
+
+    <div id="ingredientMessage" class="message"></div>
+
+</div>
+
+
+<div class="card">
+
+    <h2>Ingredients</h2>
+
+    <button onclick="loadIngredients()">
+        Refresh
+    </button>
+
+    <br><br>
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Buy Cost</th>
+                <th>Sell Cost</th>
+            </tr>
+        </thead>
+
+        <tbody id="ingredientsTable">
+        </tbody>
+
+    </table>
+
+</div>
+```
+
+</div>
+
+<script>
+
+const API_URL = "http://127.0.0.1:8000";
+
+const token = localStorage.getItem("token");
+
+if (!token) {
+    window.location.href = "login.html";
+}
+
+
+let currentUser = null;
+
+
+// ---------------------------------------------------------
+// API HELPER
+// ---------------------------------------------------------
+
+async function apiFetch(url, options = {}) {
+
+    options.headers = {
+        ...(options.headers || {}),
+        "Authorization": `Bearer ${token}`
+    };
+
+    const response = await fetch(API_URL + url, options);
+
+    if (response.status === 401) {
+        logout();
+        return;
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.detail || "Request failed");
+    }
+
+    return data;
+}
+
+
+// ---------------------------------------------------------
+// INITIAL LOAD
+// ---------------------------------------------------------
+
+async function initialize() {
+
+    try {
+
+        currentUser = await apiFetch("/me");
+
+        document.getElementById("usernameDisplay").textContent =
+            currentUser.username;
+
+        if (currentUser.role === "manager") {
+
+            document.getElementById("payoutsTabButton").style.display =
+                "block";
+
+            document.getElementById("ingredientsTabButton").style.display =
+                "block";
+
+        }
+
+        await loadIngredients();
+
+        await loadInventory();
+
+        if (currentUser.role === "manager") {
+            await loadPayouts();
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// TABS
+// ---------------------------------------------------------
+
+function showTab(tabName, button) {
+
+    document.querySelectorAll(".tab").forEach(tab => {
+        tab.classList.remove("active");
+    });
+
+    document.querySelectorAll(".tab-button").forEach(btn => {
+        btn.classList.remove("active");
+    });
+
+    document.getElementById(tabName).classList.add("active");
+
+    button.classList.add("active");
+
+
+    if (tabName === "inventory") {
+        loadInventory();
+    }
+
+    if (tabName === "payouts") {
+        loadPayouts();
+    }
+
+    if (tabName === "ingredients") {
+        loadIngredients();
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// INGREDIENTS
+// ---------------------------------------------------------
+
+async function loadIngredients() {
+
+    try {
+
+        const ingredients = await apiFetch("/ingredients");
+
+        const saleSelect =
+            document.getElementById("saleIngredient");
+
+        const depositSelect =
+            document.getElementById("depositIngredient");
+
+        const table =
+            document.getElementById("ingredientsTable");
+
+
+        saleSelect.innerHTML =
+            '<option value="">Select ingredient</option>';
+
+        depositSelect.innerHTML =
+            '<option value="">Select ingredient</option>';
+
+        table.innerHTML = "";
+
+
+        ingredients.forEach(ingredient => {
+
+            const saleOption = document.createElement("option");
+
+            saleOption.value = ingredient.id;
+            saleOption.textContent = ingredient.name;
+
+            saleSelect.appendChild(saleOption);
+
+
+            const depositOption = document.createElement("option");
+
+            depositOption.value = ingredient.id;
+            depositOption.textContent = ingredient.name;
+
+            depositSelect.appendChild(depositOption);
+
+
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${ingredient.name}</td>
+                <td>$${Number(ingredient.buy_cost).toFixed(2)}</td>
+                <td>$${Number(ingredient.sell_cost).toFixed(2)}</td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// SALES
+// ---------------------------------------------------------
+
+document
+    .getElementById("saleForm")
+    .addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const ingredientId =
+            document.getElementById("saleIngredient").value;
+
+        const quantity =
+            document.getElementById("saleQuantity").value;
+
+        const message =
+            document.getElementById("saleMessage");
+
+
+        try {
+
+            const result = await apiFetch(
+                `/sales?ingredient_id=${ingredientId}&quantity=${quantity}`,
+                {
+                    method: "POST"
+                }
+            );
+
+            message.className = "message success";
+
+            message.textContent =
+                `Sale recorded successfully. Sale #${result.sale_id}`;
+
+            document.getElementById("saleQuantity").value = "";
+
+            await loadInventory();
+
+            if (currentUser.role === "manager") {
+                await loadPayouts();
+            }
+
+        } catch (error) {
+
+            message.className = "message error";
+            message.textContent = error.message;
+
+        }
+
+    });
+
+
+// ---------------------------------------------------------
+// DEPOSITS
+// ---------------------------------------------------------
+
+document
+    .getElementById("depositForm")
+    .addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const ingredientId =
+            document.getElementById("depositIngredient").value;
+
+        const quantity =
+            document.getElementById("depositQuantity").value;
+
+        const message =
+            document.getElementById("depositMessage");
+
+
+        try {
+
+            await apiFetch(
+                `/deposits?ingredient_id=${ingredientId}&quantity=${quantity}`,
+                {
+                    method: "POST"
+                }
+            );
+
+            message.className = "message success";
+            message.textContent = "Deposit recorded successfully.";
+
+            document.getElementById("depositQuantity").value = "";
+
+            await loadInventory();
+
+        } catch (error) {
+
+            message.className = "message error";
+            message.textContent = error.message;
+
+        }
+
+    });
+
+
+// ---------------------------------------------------------
+// INVENTORY
+// ---------------------------------------------------------
+
+async function loadInventory() {
+
+    try {
+
+        const inventory = await apiFetch("/inventory");
+
+        const table =
+            document.getElementById("inventoryTable");
+
+        table.innerHTML = "";
+
+
+        inventory.forEach(item => {
+
+            const row = document.createElement("tr");
+
+            const deposited =
+                new Date(item.deposited_at).toLocaleString();
+
+            row.innerHTML = `
+                <td>${item.employee_name}</td>
+                <td>${item.ingredient_name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.quantity_remaining}</td>
+                <td>${deposited}</td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// PAYOUTS
+// ---------------------------------------------------------
+
+async function loadPayouts() {
+
+    if (!currentUser || currentUser.role !== "manager") {
+        return;
+    }
+
+    try {
+
+        const payouts = await apiFetch("/payouts");
+
+        const table =
+            document.getElementById("payoutsTable");
+
+        table.innerHTML = "";
+
+
+        if (payouts.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td colspan="4">
+                        No outstanding payouts.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+
+        payouts.forEach(payout => {
+
+            const row = document.createElement("tr");
+
+            const amount =
+                Number(payout.amount_owed);
+
+            // Employee name
+            const employeeCell =
+                document.createElement("td");
+
+            employeeCell.textContent =
+                payout.employee_name;
+
+
+            // Amount owed
+            const owedCell =
+                document.createElement("td");
+
+            owedCell.textContent =
+                `$${amount.toFixed(2)}`;
+
+
+            // Payment input
+            const inputCell =
+                document.createElement("td");
+
+            const input =
+                document.createElement("input");
+
+            input.type = "number";
+            input.className = "payment-input";
+            input.min = "0.01";
+            input.max = amount.toFixed(2);
+            input.step = "0.01";
+            input.placeholder = "Amount";
+            input.id = `pay-amount-${payout.employee_id}`;
+
+            inputCell.appendChild(input);
+
+
+            // Pay button
+            const actionCell =
+                document.createElement("td");
+
+            const button =
+                document.createElement("button");
+
+            button.className = "pay-btn";
+            button.textContent = "Pay";
+
+            button.addEventListener("click", () => {
+                payEmployee(
+                    payout.employee_id,
+                    payout.employee_name,
+                    amount
+                );
+            });
+
+            actionCell.appendChild(button);
+
+
+            row.appendChild(employeeCell);
+            row.appendChild(owedCell);
+            row.appendChild(inputCell);
+            row.appendChild(actionCell);
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// PAY EMPLOYEE
+// ---------------------------------------------------------
+
+async function payEmployee(
+    employeeId,
+    employeeName,
+    amountOwed
+) {
+
+    const message =
+        document.getElementById("payoutMessage");
+
+    const input =
+        document.getElementById(`pay-amount-${employeeId}`);
+
+    const amount =
+        Number(input.value);
+
+
+    if (!input.value || !Number.isFinite(amount)) {
+
+        message.className = "message error";
+        message.textContent =
+            "Enter an amount to pay.";
+
+        return;
+    }
+
+
+    if (amount <= 0) {
+
+        message.className = "message error";
+        message.textContent =
+            "Payment amount must be greater than zero.";
+
+        return;
+    }
+
+
+    if (amount > amountOwed) {
+
+        message.className = "message error";
+        message.textContent =
+            `Payment cannot exceed the outstanding balance of $${amountOwed.toFixed(2)}.`;
+
+        return;
+    }
+
+
+    const confirmed = confirm(
+        `Pay ${employeeName} $${amount.toFixed(2)}?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const result = await apiFetch(
+            `/payouts/${employeeId}/pay?amount=${amount.toFixed(2)}`,
+            {
+                method: "POST"
+            }
+        );
+
+
+        message.className = "message success";
+
+        message.textContent =
+            `${employeeName} was paid $${Number(
+                result.amount_paid
+            ).toFixed(2)}. Remaining balance: $${Number(
+                result.remaining_balance
+            ).toFixed(2)}.`;
+
+
+        await loadPayouts();
+
+    } catch (error) {
+
+        message.className = "message error";
+        message.textContent = error.message;
+
+    }
+
+}
+
+
+// ---------------------------------------------------------
+// ADD INGREDIENT
+// ---------------------------------------------------------
+
+document
+    .getElementById("ingredientForm")
+    .addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name =
+            document.getElementById("ingredientName").value;
+
+        const buyCost =
+            document.getElementById("buyCost").value;
+
+        const sellCost =
+            document.getElementById("sellCost").value;
+
+        const message =
+            document.getElementById("ingredientMessage");
+
+
+        try {
+
+            await apiFetch(
+                `/ingredients?name=${encodeURIComponent(name)}&buy_cost=${buyCost}&sell_cost=${sellCost}`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+            message.className = "message success";
+            message.textContent =
+                "Ingredient added successfully.";
+
+
+            document.getElementById("ingredientName").value = "";
+            document.getElementById("buyCost").value = "";
+            document.getElementById("sellCost").value = "";
+
+
+            await loadIngredients();
+
+        } catch (error) {
+
+            message.className = "message error";
+            message.textContent = error.message;
+
+        }
+
+    });
+
+
+// ---------------------------------------------------------
+// LOGOUT
+// ---------------------------------------------------------
+
+function logout() {
+
+    localStorage.removeItem("token");
+
+    window.location.href = "login.html";
+
+}
+
+
+// ---------------------------------------------------------
+// START
+// ---------------------------------------------------------
+
+initialize();
+
+</script>
+
+</body>
+</html>
