@@ -141,3 +141,17 @@ with SessionLocal() as db:
             f"{allocation.quantity} units -> "
             f"${allocation.payout_amount}"
         )
+
+    db.query(PayoutAllocation).filter(
+        PayoutAllocation.sale_id == sale.id
+    ).delete(synchronize_session=False)
+    db.query(Deposit).filter(
+        Deposit.product_id == tomatoes.id
+    ).delete(synchronize_session=False)
+    db.query(Sale).filter(
+        Sale.id == sale.id
+    ).delete(synchronize_session=False)
+    db.delete(tomatoes)
+    db.delete(bob)
+    db.delete(alice)
+    db.commit()

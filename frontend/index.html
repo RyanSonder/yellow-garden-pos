@@ -1633,7 +1633,17 @@
 
 <script>
 
-const API_URL = "http://127.0.0.1:8000";
+const isLocalFrontend =
+    window.location.protocol === "file:" ||
+    ["localhost", "127.0.0.1"].includes(
+        window.location.hostname
+    );
+
+const API_URL =
+    window.POS_API_URL ||
+    (isLocalFrontend
+        ? "http://127.0.0.1:8000"
+        : window.location.origin);
 
 const token = localStorage.getItem("token");
 

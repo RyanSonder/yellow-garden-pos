@@ -6,6 +6,7 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,12 @@ class AdminEmployeeUpdate(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class EmployeeCreateRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "employee"
 
 
 class ReconcileAllocation(BaseModel):
@@ -143,12 +150,13 @@ def require_manager_or_admin(
 
 @router.post("/employees")
 def create_employee(
-    username: str,
-    password: str,
-    role: str = "employee",
+    employee_data: EmployeeCreateRequest,
     db: Session = Depends(get_db),
     current_user: Employee = Depends(require_manager_or_admin),
 ):
+    username = employee_data.username
+    password = employee_data.password
+    role = employee_data.role
     allowed_roles = {
         "employee",
         "manager",
@@ -191,6 +199,15 @@ def create_employee(
 
     try:
         db.add(employee)
+        db.flush()
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="create_employee",
+            entity_type="employee",
+            entity_id=employee.id,
+            details={"username": employee.username, "role": employee.role},
+        )
         db.commit()
         db.refresh(employee)
 
@@ -302,6 +319,15 @@ def update_employee_as_admin(
             update.password
         )
 
+    add_audit_log(
+        db,
+        employee_id=current_user.id,
+        action="update_employee",
+        entity_type="employee",
+        entity_id=employee.id,
+        details={"username": employee.username, "role": employee.role},
+    )
+
     try:
         db.commit()
         db.refresh(employee)
@@ -333,10 +359,15 @@ def login(
         .first()
     )
 
-    if not employee or not password_hash.verify(
-        credentials.password,
-        employee.password_hash,
-    ):
+    try:
+        valid_password = employee and password_hash.verify(
+            credentials.password,
+            employee.password_hash,
+        )
+    except UnknownHashError:
+        valid_password = False
+
+    if not valid_password:
         raise HTTPException(
             status_code=401,
             detail="Invalid username or password",
@@ -647,6 +678,21 @@ def bulk_update_products(
             product.sell_cost = update.sell_cost
             product.desired_quantity = update.desired_quantity
 
+            add_audit_log(
+                db,
+                employee_id=current_user.id,
+                action="update_product",
+                entity_type="product",
+                entity_id=product.id,
+                details={
+                    "name": product.name,
+                    "type": product.type,
+                    "buy_cost": str(product.buy_cost),
+                    "sell_cost": str(product.sell_cost),
+                    "desired_quantity": str(product.desired_quantity),
+                },
+            )
+
         db.commit()
 
         for product in products:
@@ -740,6 +786,20 @@ def update_product(
     product.desired_quantity = desired_quantity
 
     try:
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="update_product",
+            entity_type="product",
+            entity_id=product.id,
+            details={
+                "name": product.name,
+                "type": product.type,
+                "buy_cost": str(product.buy_cost),
+                "sell_cost": str(product.sell_cost),
+                "desired_quantity": str(product.desired_quantity),
+            },
+        )
         db.commit()
         db.refresh(product)
 
@@ -846,7 +906,11 @@ def preview_deposit(
             detail="Quantity must be greater than zero",
         )
 
-    product = db.get(Product, product_id)
+    product = (
+        db.query(Product)
+        .filter(Product.id == product_id, Product.is_active.is_(True))
+        .first()
+    )
 
     if not product:
         raise HTTPException(
@@ -923,7 +987,12 @@ def create_deposit(
             detail="Quantity must be greater than zero",
         )
 
-    product = db.get(Product, product_id)
+    product = (
+        db.query(Product)
+        .filter(Product.id == product_id, Product.is_active.is_(True))
+        .with_for_update()
+        .first()
+    )
 
     if not product:
         raise HTTPException(
@@ -986,6 +1055,19 @@ def create_deposit(
                 )
             )
 
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="create_deposit",
+            entity_type="product",
+            entity_id=product.id,
+            details={
+                "quantity": str(quantity),
+                "employee_credit": str(employee_credit),
+                "store_credit": str(store_credit),
+            },
+        )
+
         db.commit()
 
     except Exception:
@@ -1014,11 +1096,12 @@ def get_inventory(
     current_user: Employee = Depends(get_current_user),
 ):
     products = (
-        db.query(Product)
+            db.query(Product)
         .order_by(
             Product.name,
             Product.type,
         )
+            .filter(Product.is_active.is_(True))
         .all()
     )
 
@@ -1078,6 +1161,7 @@ def get_reconciliation_data(
             Product.name,
             Product.type,
         )
+        .filter(Product.is_active.is_(True))
         .all()
     )
 
@@ -1903,6 +1987,7 @@ def create_sale(
             db,
             product_id,
             quantity,
+            employee_id=current_user.id,
         )
 
     except ValueError as e:
@@ -2088,6 +2173,19 @@ def pay_employee(
 
     try:
         db.add(payment)
+        db.flush()
+        add_audit_log(
+            db,
+            employee_id=current_user.id,
+            action="pay_employee",
+            entity_type="employee",
+            entity_id=employee.id,
+            details={
+                "amount": str(amount),
+                "payment_id": payment.id,
+                "remaining_balance": str(outstanding - amount),
+            },
+        )
         db.commit()
 
     except Exception:

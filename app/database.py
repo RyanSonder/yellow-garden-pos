@@ -13,7 +13,10 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+)
 
 
 def ensure_schema_compatibility() -> None:
@@ -38,6 +41,13 @@ def ensure_schema_compatibility() -> None:
                     "NOT NULL DEFAULT true"
                 )
             )
+
+        connection.execute(
+            text(
+                "ALTER TABLE products "
+                "DROP CONSTRAINT IF EXISTS products_type_check"
+            )
+        )
 
 
 SessionLocal = sessionmaker(

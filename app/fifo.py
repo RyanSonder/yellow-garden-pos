@@ -1,20 +1,26 @@
+import json
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import Deposit, Sale, PayoutAllocation, Product
+from .models import AuditLog, Deposit, Sale, PayoutAllocation, Product
 
 
 def process_sale(
     db: Session,
     product_id: int,
     quantity: Decimal,
+    employee_id: int | None = None,
 ):
     if quantity <= 0:
         raise ValueError("Quantity must be greater than zero")
 
-    product = db.get(Product, product_id)
+    product = (
+        db.query(Product)
+        .filter(Product.id == product_id, Product.is_active.is_(True))
+        .first()
+    )
 
     if not product:
         raise ValueError("Product not found")
@@ -115,6 +121,20 @@ def process_sale(
 
         deposit.quantity_remaining -= taken
         remaining -= taken
+
+    if employee_id is not None:
+        db.add(
+            AuditLog(
+                employee_id=employee_id,
+                action="create_sale",
+                entity_type="sale",
+                entity_id=sale.id,
+                details=json.dumps({
+                    "product_id": product.id,
+                    "quantity": str(quantity),
+                }),
+            )
+        )
 
     db.commit()
 

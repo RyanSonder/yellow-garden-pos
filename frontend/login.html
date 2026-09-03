@@ -134,7 +134,17 @@
 
 <script>
 
-const API_URL = "http://127.0.0.1:8000";
+const isLocalFrontend =
+    window.location.protocol === "file:" ||
+    ["localhost", "127.0.0.1"].includes(
+        window.location.hostname
+    );
+
+const API_URL =
+    window.POS_API_URL ||
+    (isLocalFrontend
+        ? "http://127.0.0.1:8000"
+        : window.location.origin);
 
 document
     .getElementById("loginForm")
@@ -167,7 +177,19 @@ document
                 }
             );
 
-            const data = await response.json();
+            const responseText = await response.text();
+            let data = {};
+
+            try {
+                data = responseText
+                    ? JSON.parse(responseText)
+                    : {};
+            } catch {
+                throw new Error(
+                    `Login request failed with HTTP ${response.status}. ` +
+                    "Check that the POS API URL is correct."
+                );
+            }
 
             if (!response.ok) {
                 throw new Error(data.detail || "Login failed");
